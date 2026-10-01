@@ -1,0 +1,912 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="color-scheme" content="only light">
+<title>إدارة نظام الباجات</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
+<script src="icons.js"></script>
+<script src="config.js"></script>
+<script src="api.js"></script>
+<script src="qrcode.js"></script>
+<script src="badge.js"></script>
+<style>
+:root{color-scheme:light;
+  --pri:#13704d;--pri-d:#0d5237;--pri-l:#e6f1ec;--acc:#1aa6a2;--acc-d:#128784;--acc-l:#e2f4f3;
+  --gold:#d4a72c;--gold-l:#fbf4dc;--bg:#f4f7f5;--card:#fff;--ink:#1b2a24;--muted:#66776f;--line:#e2e9e5;--danger:#c0392b;--r:14px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
+.ti{display:inline-block;width:1em;height:1em;line-height:1;vertical-align:-.15em;flex:0 0 auto}
+.ti svg{display:block;width:100%;height:100%}
+button,input[type=text],input[type=password],input[type=number],textarea{-webkit-appearance:none;appearance:none}
+html,body{background:var(--bg)}
+body{font-family:'Tajawal',-apple-system,BlinkMacSystemFont,'Segoe UI',Tahoma,'Noto Sans Arabic',Arial,sans-serif;color:var(--ink);font-size:15px;line-height:1.6;-webkit-tap-highlight-color:transparent}
+button,input,textarea,select{font:inherit;color:inherit}
+button{cursor:pointer;border:0;background:none}
+[hidden]{display:none!important}
+
+.login{min-height:100vh;display:grid;place-items:center;padding:24px;background:linear-gradient(160deg,#093b28,var(--pri-d) 55%,var(--pri))}
+.login form{background:#fff;border-radius:22px;padding:32px 24px;width:100%;max-width:360px;text-align:center;box-shadow:0 20px 50px rgba(0,0,0,.2)}
+.login .logo{width:200px;max-width:80%;height:auto;margin:0 auto 10px;display:block}
+.login h1{font-size:21px;margin:6px 0 4px}
+.login p{color:var(--muted);font-size:14px;margin-bottom:20px}
+.login input{width:100%;padding:14px;border:1.5px solid var(--line);border-radius:12px;text-align:center;font-size:20px;letter-spacing:4px;margin-bottom:14px}
+.login input:focus{outline:none;border-color:var(--pri)}
+
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:10px 16px;border-radius:11px;font-weight:700;font-size:14px;background:var(--pri-l);color:var(--pri-d);white-space:nowrap}
+.btn .ti{font-size:1.2em}
+.btn.pri{background:var(--pri);color:#fff}
+.btn.gold{background:var(--gold);color:#fff}
+.btn.danger{background:#fdecea;color:var(--danger)}
+.btn.ghost{background:transparent;border:1.5px solid var(--line);color:var(--muted)}
+.btn.sm{padding:6px 11px;font-size:13px}
+.btn.block{width:100%;padding:14px}
+.btn:disabled{opacity:.45;cursor:default}
+.top{position:sticky;top:0;z-index:20;background:var(--pri-d);color:#fff;padding:14px 16px;display:flex;align-items:center;justify-content:space-between;gap:10px}
+.top .tl{display:flex;align-items:center;gap:12px}
+.top img{height:30px;width:auto;padding-left:12px;border-left:1px solid rgba(255,255,255,.25)}
+.top b{display:block;font-size:17px}
+.top small{opacity:.75;font-size:12px}
+.top .btn{background:rgba(255,255,255,.14);color:#fff}
+.tabs{position:sticky;top:62px;z-index:19;background:#fff;border-bottom:1px solid var(--line);display:flex;overflow-x:auto;scrollbar-width:none}
+.tabs::-webkit-scrollbar{display:none}
+.tabs button{flex:0 0 auto;padding:13px 16px;font-weight:700;color:var(--muted);border-bottom:3px solid transparent;font-size:14px;display:flex;align-items:center;gap:6px}
+.tabs button .ti{font-size:18px}
+.tabs button.on{color:var(--pri);border-color:var(--pri)}
+main{max-width:1100px;margin:0 auto;padding:16px}
+.bar{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px;margin-bottom:14px}
+.bar h2{font-size:18px}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.hint{color:var(--muted);font-size:13px;margin-bottom:12px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:16px;margin-bottom:14px}
+.card h3{font-size:16px;margin-bottom:10px;display:flex;align-items:center;gap:6px}
+.empty{text-align:center;color:var(--muted);padding:30px}
+.dot{display:inline-block;width:12px;height:12px;border-radius:4px;vertical-align:-1px}
+
+/* الجهات */
+.ent{display:flex;align-items:center;gap:12px;background:#fff;border:1px solid var(--line);border-radius:var(--r);padding:12px;margin-bottom:10px}
+.ent.off{opacity:.55}
+.ent .ord{display:flex;flex-direction:column;gap:4px}
+.ent .ord button{width:30px;height:26px;border-radius:8px;background:var(--bg);color:var(--muted);font-size:11px}
+.ent .ord button:disabled{opacity:.3}
+.ent .ic{font-size:26px;width:48px;height:48px;border-radius:12px;background:var(--pri-l);color:var(--pri);display:grid;place-items:center;flex:0 0 auto}
+.ent .info{flex:1;min-width:0}
+.ent .info b{display:block}
+.ent .info small{color:var(--muted);font-size:12px}
+.pin{display:inline-block;background:var(--gold-l);color:#7a5f0c;border-radius:8px;padding:0 8px;font-weight:800;letter-spacing:2px;direction:ltr}
+.chips{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px}
+.chips span{font-size:11px;border-radius:20px;padding:1px 8px;color:#fff}
+.ent .acts{display:flex;flex-direction:column;gap:6px}
+.tag-off{color:var(--danger);font-weight:700}
+
+/* المصفوفة */
+.mx{overflow-x:auto;background:#fff;border:1px solid var(--line);border-radius:var(--r)}
+.mx table{border-collapse:collapse;width:100%;min-width:520px}
+.mx th,.mx td{padding:10px 8px;text-align:center;border-bottom:1px solid var(--line)}
+.mx th{background:var(--pri-l);font-size:13px;line-height:1.4}
+.mx td:first-child,.mx th:first-child{text-align:right;position:sticky;right:0;background:#fff;min-width:180px;font-weight:600}
+.mx th:first-child{background:var(--pri-l)}
+.mx tr.off td{opacity:.5}
+.mx td:first-child .ti{color:var(--pri);margin-left:4px}
+.star{font-size:24px;color:#d6dcda;width:44px;height:40px;border-radius:10px;transition:.15s}
+.star.on{color:var(--gold);background:var(--gold-l)}
+.mx tr.foot td{font-weight:800;color:var(--pri-d);background:var(--bg)}
+
+/* الباجات */
+.cats{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px;margin-bottom:14px}
+.cat{background:#fff;border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+.cat .hd{color:#fff;padding:12px 14px;display:flex;justify-content:space-between;align-items:center}
+.cat .hd b{font-size:17px}
+.cat .hd span{background:rgba(255,255,255,.22);border-radius:8px;padding:1px 8px;font-weight:800;direction:ltr}
+.cat .bd{padding:12px 14px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;text-align:center}
+.cat .bd small{display:block;color:var(--muted);font-size:12px}
+.cat .bd b{font-size:20px}
+.cat .ft{padding:0 14px 14px;display:flex;gap:8px;align-items:center}
+.cat .ft input{width:90px;padding:8px;border:1.5px solid var(--line);border-radius:10px;font-size:16px;text-align:center}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px}
+.fld{display:block;margin-bottom:12px}
+.fld span{display:block;font-weight:700;font-size:14px;margin-bottom:4px}
+.fld input,.fld select,.fld textarea{width:100%;font-size:16px;padding:10px 12px;border:1.5px solid var(--line);border-radius:10px;background:#fff}
+.fld input:focus,.fld select:focus,.fld textarea:focus{outline:none;border-color:var(--pri)}
+.fld small{color:var(--muted);font-size:12px}
+.inline{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.preview{display:flex;justify-content:center;padding:10px;background:var(--bg);border-radius:12px;margin-bottom:10px}
+.lk{border-top:1px solid var(--line);margin-top:10px;padding-top:10px}
+.lk .head{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.lk .code{font-size:22px;font-weight:800;letter-spacing:3px;direction:ltr}
+.lk ul{list-style:none;font-size:14px}
+.lk li{padding:5px 0;border-bottom:1px dashed var(--line);display:flex;justify-content:space-between;gap:8px}
+
+/* الإحصاءات */
+.kpis{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-bottom:14px}
+.kpi{background:#fff;border:1px solid var(--line);border-radius:var(--r);padding:14px}
+.kpi small{color:var(--muted);font-size:12px;display:block}
+.kpi b{font-size:26px;color:var(--pri-d);font-weight:800}
+.tbl{overflow-x:auto}
+.tbl table{width:100%;border-collapse:collapse;min-width:560px;font-size:14px}
+.tbl th,.tbl td{padding:9px 8px;border-bottom:1px solid var(--line);text-align:center}
+.tbl th{background:var(--bg);font-size:12px;color:var(--muted)}
+.tbl td:first-child,.tbl th:first-child{text-align:right}
+.tops{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:10px}
+.tops ol{padding-right:18px;font-size:14px}
+.barln{height:8px;border-radius:6px;background:var(--pri-l);overflow:hidden;margin-top:3px}
+.barln i{display:block;height:100%;background:var(--pri)}
+.note{border-bottom:1px solid var(--line);padding:10px 0}
+.note:last-child{border:0}
+.note small{color:var(--muted);font-size:12px}
+
+/* الإعدادات */
+.links{display:grid;gap:10px}
+.lnk{display:flex;align-items:center;gap:10px;background:#fff;border:1px solid var(--line);border-radius:12px;padding:10px 12px}
+.lnk .t{flex:1;min-width:0}
+.lnk .t b{display:block;font-size:14px}
+.lnk .t code{display:block;font-size:12px;color:var(--muted);direction:ltr;text-align:left;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.checks{display:flex;flex-wrap:wrap;gap:8px}
+.checks label{display:flex;align-items:center;gap:6px;background:var(--bg);border-radius:10px;padding:7px 11px;font-size:14px;cursor:pointer}
+.checks input{width:18px;height:18px;accent-color:var(--pri)}
+.crow{display:grid;grid-template-columns:52px 1fr 90px 90px auto;gap:8px;align-items:center;margin-bottom:8px}
+.crow input[type=text],.crow input[type=number]{padding:9px;border:1.5px solid var(--line);border-radius:10px;width:100%;font-size:16px}
+.crow input[type=color]{width:52px;height:40px;border:1.5px solid var(--line);border-radius:10px;padding:2px;background:#fff}
+.crow .pf{font-weight:800;text-align:center;background:var(--bg);border-radius:10px;padding:9px 0;direction:ltr}
+
+/* نافذة */
+.modal{position:fixed;top:0;right:0;bottom:0;left:0;z-index:50;background:rgba(15,30,26,.5);display:flex;align-items:flex-end;justify-content:center}
+.sheet{background:#fff;width:100%;max-width:560px;max-height:92vh;overflow-y:auto;border-radius:22px 22px 0 0;padding:20px 18px calc(20px + env(safe-area-inset-bottom))}
+@media(min-width:700px){.modal{align-items:center}.sheet{border-radius:22px}}
+.sheet h3{font-size:18px;margin-bottom:14px}
+.icons{display:grid;grid-template-columns:repeat(auto-fill,minmax(42px,1fr));gap:6px;margin-top:8px;max-height:190px;overflow-y:auto}
+.icons button{height:42px;border-radius:10px;background:var(--bg);font-size:22px;display:grid;place-items:center}
+.icons button.on{background:var(--pri);color:#fff}
+.icrow{display:flex;align-items:center;gap:10px}
+.icprev{width:48px;height:48px;border-radius:12px;background:var(--pri-l);color:var(--pri);display:grid;place-items:center;font-size:26px;flex:0 0 auto}
+.sheet .foot{display:flex;gap:10px;margin-top:8px}
+.sheet .foot .btn{flex:1;padding:13px}
+
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(120px);background:var(--ink);color:#fff;padding:12px 20px;border-radius:12px;z-index:90;transition:.3s;max-width:90vw;text-align:center;font-weight:600}
+.toast.show{transform:translateX(-50%) translateY(0)}
+.toast.bad{background:var(--danger)}
+.busy{position:fixed;top:0;right:0;bottom:0;left:0;z-index:80;background:rgba(255,255,255,.6);display:grid;place-items:center;align-content:center;gap:12px;font-weight:700;color:var(--pri-d)}
+.spin{width:42px;height:42px;border:4px solid var(--pri-l);border-top-color:var(--pri);border-radius:50%;animation:sp .8s linear infinite;margin:auto}
+@keyframes sp{to{transform:rotate(360deg)}}
+
+/* تصميم الباجة (للمعاينة والطباعة) */
+.bdg{width:97mm;height:70mm;padding:3mm;display:flex;flex-direction:column;overflow:hidden;background:#fff;font-family:'Tajawal',Tahoma,Arial,sans-serif;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.bdg .band{color:#fff;border-radius:2.5mm;padding:1.6mm 3mm;display:flex;align-items:center;justify-content:space-between}
+.bdg .band b{font-size:17pt;font-weight:800;line-height:1.2}
+.bdg .band img{height:8mm;width:auto}
+.bdg .ex{font-size:8.5pt;color:#333;text-align:center;margin:1.6mm 0 1mm;font-weight:700;line-height:1.3}
+.bdg .bc{flex:1;display:flex;flex-direction:row;align-items:center;justify-content:center;gap:4mm}
+.bdg .bc .lin{display:flex;flex-direction:column;align-items:center}
+.bdg .bc .lin svg{width:60mm;height:15mm;display:block}
+.bdg .bc .qr svg{width:19mm;height:19mm;display:block}
+.bdg .num{font-size:15pt;font-weight:800;letter-spacing:2.5mm;direction:ltr;margin-top:1mm;color:#111}
+.bdg .org{font-size:7pt;color:#666;text-align:center}
+
+/* ===== طباعة الباجات: 8 باجات في صفحة A4 ===== */
+#printArea{display:none}
+@media print{
+  @page{size:A4 portrait;margin:8mm}
+  body{background:#fff}
+  body.printing > *:not(#printArea){display:none!important}
+  body.printing #printArea{display:block}
+  #printArea *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .ppage{display:grid;grid-template-columns:97mm 97mm;grid-auto-rows:70mm;gap:0;justify-content:center;page-break-after:always;break-after:page}
+  .ppage:last-child{page-break-after:auto;break-after:auto}
+  .bdg{border:.3mm dashed #b5bdb9}
+  .stable{width:100%;border-collapse:collapse;font-family:'Tajawal',Tahoma,Arial,sans-serif;font-size:13pt}
+  .stable th,.stable td{border:1px solid #999;padding:3mm;text-align:right}
+  .stable td.p{font-size:18pt;font-weight:800;letter-spacing:2mm;direction:ltr;text-align:center}
+}
+</style>
+</head>
+<body>
+
+<div id="loginView" class="login">
+  <form id="loginForm">
+    <img class="logo" src="logo.png" alt="جامعة القصيم">
+    <h1>إدارة نظام الباجات</h1>
+    <p>أدخل رمز الإدارة</p>
+    <input id="pw" type="password" inputmode="numeric" autocomplete="current-password" required>
+    <button class="btn pri block" type="submit">دخول</button>
+  </form>
+</div>
+
+<div id="app" hidden>
+  <header class="top">
+    <div class="tl"><img src="logo-white.png" alt=""><div><b id="expoName">لوحة الإدارة</b><small>نظام الباجات — إدارة الجهات والإحصاءات</small></div></div>
+    <button class="btn" id="logout"><i class="ti ti-logout"></i> خروج</button>
+  </header>
+  <nav class="tabs">
+    <button data-tab="ents" class="on"><i class="ti ti-building"></i> الجهات</button>
+    <button data-tab="matrix"><i class="ti ti-star"></i> الارتباط بالفئات</button>
+    <button data-tab="badges"><i class="ti ti-id-badge-2"></i> الباجات</button>
+    <button data-tab="stats"><i class="ti ti-chart-bar"></i> الإحصاءات</button>
+    <button data-tab="settings"><i class="ti ti-settings"></i> الإعدادات</button>
+  </nav>
+  <main>
+
+    <!-- الجهات -->
+    <section id="tab-ents">
+      <div class="bar">
+        <h2>الجهات المشاركة</h2>
+        <div class="row">
+          <button class="btn gold" id="saveOrder" hidden><i class="ti ti-device-floppy"></i> حفظ الترتيب</button>
+          <button class="btn" id="printPins"><i class="ti ti-printer"></i> طباعة رموز المحطات</button>
+          <button class="btn pri" id="addEnt"><i class="ti ti-plus"></i> إضافة جهة</button>
+        </div>
+      </div>
+      <p class="hint">كل جهة تدخل محطتها برمزها الخاص (المظلل بالأصفر). الجهة التي لها زيارات مسجلة تُعطَّل بدل حذفها حفاظًا على الإحصاءات.</p>
+      <div id="entList"></div>
+    </section>
+
+    <!-- المصفوفة -->
+    <section id="tab-matrix" hidden>
+      <div class="bar">
+        <h2>الفئات المستهدفة لكل جهة</h2>
+        <button class="btn pri" id="saveMatrix"><i class="ti ti-device-floppy"></i> حفظ الارتباطات</button>
+      </div>
+      <p class="hint">النجمة تعني أن الفئة مستهدفة لهذه الجهة. لا تمنع أي زائر من الزيارة؛ تُستخدم لإظهار «من الفئة المستهدفة» عند المسح ولقياس الاستجابة في الإحصاءات.</p>
+      <div class="mx" id="matrix"></div>
+    </section>
+
+    <!-- الباجات -->
+    <section id="tab-badges" hidden>
+      <div class="bar">
+        <h2>الباجات</h2>
+        <div class="row">
+          <button class="btn" id="exportCsv"><i class="ti ti-download"></i> تصدير الأرقام CSV</button>
+          <button class="btn pri" id="genPlanned"><i class="ti ti-barcode"></i> توليد الباجات المخططة</button>
+        </div>
+      </div>
+      <p class="hint">الرقم الأول في كود الباجة يحدد الفئة، والرقم الأخير رقم تحقق. «توليد الباجات المخططة» يكمل كل فئة حتى عددها المخطط، ويمكن توليد عدد إضافي لأي فئة في أي وقت دون تكرار الأرقام.</p>
+      <div class="cats" id="catCards"></div>
+
+      <div class="grid2">
+        <div class="card">
+          <h3><i class="ti ti-printer"></i> طباعة الباجات</h3>
+          <label class="fld"><span>الفئة</span><select id="pCat"></select></label>
+          <div class="inline">
+            <label class="fld"><span>من تسلسل</span><input id="pFrom" type="number" min="1" value="1" inputmode="numeric"></label>
+            <label class="fld"><span>إلى تسلسل</span><input id="pTo" type="number" min="1" inputmode="numeric"></label>
+          </div>
+          <div class="preview" id="pPreview"></div>
+          <button class="btn pri block" id="printRange"><i class="ti ti-printer"></i> طباعة النطاق</button>
+          <p class="hint" style="margin:10px 0 0">8 باجات في كل صفحة A4 مع خطوط قص (97×70 ملم). في نافذة الطباعة فعّل «رسومات الخلفية / Background graphics» لتظهر الألوان.</p>
+          <div class="lk">
+            <label class="fld"><span>طباعة باجات بأرقامها (لتعويض باجة مفقودة)</span><input id="pCodes" dir="ltr" placeholder="100016, 200014"></label>
+            <button class="btn block" id="printCodes"><i class="ti ti-printer"></i> طباعة هذه الأرقام</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3><i class="ti ti-search"></i> البحث برقم باجة</h3>
+          <form id="lookForm" class="row">
+            <input id="lookCode" dir="ltr" inputmode="numeric" placeholder="امسح الباجة أو اكتب رقمها" style="flex:1;padding:11px 12px;border:1.5px solid var(--line);border-radius:10px;font-size:16px">
+            <button class="btn pri" type="submit"><i class="ti ti-search"></i> بحث</button>
+          </form>
+          <div id="lookRes"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- الإحصاءات -->
+    <section id="tab-stats" hidden>
+      <div class="bar">
+        <h2>الإحصاءات التفصيلية</h2>
+        <div class="row">
+          <button class="btn" id="exportXlsx"><i class="ti ti-file-text"></i> تصدير Excel</button>
+          <button class="btn pri" id="reloadStats"><i class="ti ti-refresh"></i> تحديث</button>
+        </div>
+      </div>
+      <div id="statsBox"></div>
+    </section>
+
+    <!-- الإعدادات -->
+    <section id="tab-settings" hidden>
+      <div class="card">
+        <h3><i class="ti ti-link"></i> روابط النظام</h3>
+        <div class="links" id="links"></div>
+      </div>
+      <form class="card" id="setForm"></form>
+      <div class="card">
+        <h3><i class="ti ti-palette"></i> الفئات</h3>
+        <p class="hint">الاسم واللون والعدد المخطط للباجات. الرقم الأول في الكود ثابت لكل فئة ولا يتغير.</p>
+        <div id="catBox"></div>
+        <button class="btn pri" id="saveCats"><i class="ti ti-device-floppy"></i> حفظ الفئات</button>
+      </div>
+      <div class="card">
+        <h3><i class="ti ti-trash"></i> بيانات التجربة</h3>
+        <p class="hint">يحذف جميع الزيارات والتقييمات ويلغي تفعيل كل الباجات، ويُبقي الجهات والإعدادات والباجات المولّدة كما هي (فلا تحتاج لإعادة الطباعة). استخدمه مرة واحدة قبل بدء المعرض.</p>
+        <div class="checks" style="margin-bottom:10px"><label><input type="checkbox" id="resetBadges"> حذف الباجات المولّدة أيضًا (فقط إذا لم تُطبع بعد)</label></div>
+        <button class="btn danger" id="resetData"><i class="ti ti-trash"></i> مسح بيانات التجربة</button>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<div class="modal" id="modal" hidden>
+  <form class="sheet" id="entForm">
+    <h3 id="mTitle">إضافة جهة</h3>
+    <input type="hidden" id="fId">
+    <label class="fld"><span>اسم الجهة *</span><input id="fName" required maxlength="90"></label>
+    <div class="fld"><span>رمز دخول المحطة *</span>
+      <div class="row"><input id="fPin" required dir="ltr" inputmode="numeric" maxlength="8" style="flex:1;letter-spacing:4px;text-align:center;font-weight:800">
+      <button type="button" class="btn" id="fPinGen"><i class="ti ti-dice-5"></i> رمز عشوائي</button></div>
+      <small>من 4 إلى 8 أرقام، تستخدمه الجهة لدخول محطتها</small></div>
+    <div class="fld"><span>الأيقونة</span><div class="icrow"><div class="icprev" id="fIconPrev"></div><input id="fIcon" maxlength="40" dir="ltr" placeholder="building" style="flex:1"></div>
+      <div class="icons" id="iconPick"></div></div>
+    <label class="fld"><span>الوصف</span><textarea id="fDesc" rows="2" maxlength="300"></textarea></label>
+    <div class="fld"><span>الفئات المستهدفة</span><div class="checks" id="fTypes"></div></div>
+    <div class="fld"><div class="checks"><label><input type="checkbox" id="fActive"> الجهة مفعّلة</label></div></div>
+    <div class="foot">
+      <button type="button" class="btn ghost" id="mClose">إلغاء</button>
+      <button type="submit" class="btn pri">حفظ</button>
+    </div>
+  </form>
+</div>
+
+<div class="toast" id="toast"></div>
+<div class="busy" id="busy" hidden><div class="spin"></div><span id="busyT"></span></div>
+<div id="printArea"></div>
+
+<script>
+const BASE = location.href.split('#')[0].split('?')[0].replace(/[^\/]*$/, '');
+const Q_LABELS = { overall: 'التجربة العامة', benefit: 'الاستفادة', organization: 'التنظيم', content: 'محتوى الجهات' };
+const SET_LABELS = {
+  expo_name: 'اسم المعرض', expo_subtitle: 'العبارة التعريفية', organizer: 'الجهة المنظمة',
+  admin_password: 'رمز الإدارة', entrance_pin: 'رمز محطة المدخل', require_activation: 'اشتراط التفعيل عند المدخل',
+  kiosk_questions: 'أسئلة شاشة التقييم', kiosk_ask_category: 'سؤال المقيّم عن فئته',
+  kiosk_reset_sec: 'ثواني رجوع شاشة التقييم', dashboard_refresh_sec: 'ثواني تحديث الـDashboard'
+};
+const YESNO = { require_activation: 1, kiosk_ask_category: 1 };
+const ICONS = ['building', 'building-hospital', 'school', 'friends', 'certificate', 'device-laptop', 'users', 'heart-handshake',
+  'chart-infographic', 'disabled', 'bus', 'car', 'paw', 'bulb', 'books', 'library', 'world', 'headset', 'id-badge-2',
+  'stethoscope', 'heartbeat', 'building-bank', 'building-community', 'coin', 'microscope', 'flask', 'trophy', 'palette',
+  'shield-check', 'leaf', 'news', 'speakerphone', 'message-circle', 'phone', 'mail', 'compass', 'route', 'briefcase', 'user', 'star',
+  'building-store', 'calendar-event', 'clipboard-list', 'file-text', 'award', 'medal', 'brain', 'pill', 'first-aid-kit',
+  'wheelchair', 'plane', 'truck', 'tools', 'cloud', 'database', 'lock', 'key', 'gavel', 'scale', 'world-www', 'home-2', 'notebook',
+  'camera', 'microphone', 'ball-football', 'tree', 'recycle', 'globe', 'user-check', 'users-group', 'report-analytics',
+  'presentation', 'calculator', 'credit-card', 'wallet'].filter(n => !window.tiHas || window.tiHas(n));
+
+const SS = {
+  get: k => { try { return sessionStorage.getItem(k); } catch (e) { return null; } },
+  set: (k, v) => { try { sessionStorage.setItem(k, v); } catch (e) {} },
+  del: k => { try { sessionStorage.removeItem(k); } catch (e) {} }
+};
+let PASS = SS.get('bdg_pass') || '';
+let DATA = { entities: [], categories: [], settings: [] };
+let MX = {};
+
+const $ = s => document.querySelector(s);
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const ico = n => /^[a-z0-9-]+$/.test(String(n || '')) ? `<i class="ti ti-${n}"></i>` : esc(n || '');
+const catOf = id => DATA.categories.find(c => c.id === id);
+const setVal = k => (DATA.settings.find(s => s.key === k) || {}).value || '';
+const catChip = id => { const c = catOf(id); return c ? `<span style="background:${esc(c.color)}">${esc(c.name)}</span>` : ''; };
+const catName = id => { const c = catOf(id); return c ? `<span class="dot" style="background:${esc(c.color)}"></span> ${esc(c.name)}` : 'غير محددة'; };
+
+/* القراءات تُعاد تلقائيًا؛ الحفظ مرة واحدة */
+const READS = { login: 1, adminData: 1, stats: 1, export: 1, badgeList: 1, badgeLookup: 1 };
+async function api(action, data) {
+  try {
+    return await expoApi(action, Object.assign({ pass: PASS }, data || {}), { tries: READS[action] ? 3 : 1, timeout: 30000 });
+  } catch (e) {
+    if (e.network && !READS[action]) throw new Error('لم يصل رد الخادم — حدّث الصفحة وتأكد هل تم الحفظ قبل إعادة المحاولة');
+    throw e;
+  }
+}
+
+let toastT;
+function toast(msg, bad) {
+  const t = $('#toast');
+  t.textContent = msg;
+  t.className = 'toast show' + (bad ? ' bad' : '');
+  clearTimeout(toastT);
+  toastT = setTimeout(() => t.className = 'toast', 3000);
+}
+function busy(on, text) { $('#busy').hidden = !on; $('#busyT').textContent = text || ''; }
+async function run(fn, text) {
+  busy(true, text);
+  try { await fn(); } catch (e) { toast(e.message, true); } finally { busy(false); }
+}
+
+/* ---------- الدخول ---------- */
+$('#loginForm').onsubmit = e => {
+  e.preventDefault();
+  PASS = $('#pw').value.trim();
+  run(async () => {
+    try { await api('login'); } catch (err) { PASS = ''; throw err; }
+    SS.set('bdg_pass', PASS);
+    await enterApp();
+  });
+};
+$('#logout').onclick = () => { SS.del('bdg_pass'); location.reload(); };
+async function enterApp() {
+  $('#loginView').hidden = true;
+  $('#app').hidden = false;
+  await load();
+}
+async function load() {
+  const d = await api('adminData');
+  DATA = { entities: d.entities, categories: d.categories, settings: d.settings };
+  $('#expoName').textContent = setVal('expo_name') || 'لوحة الإدارة';
+  renderEnts(); renderMatrix(); renderBadges(); renderSettings();
+}
+if (PASS) run(async () => {
+  try { await api('login'); await enterApp(); }
+  catch (e) { PASS = ''; SS.del('bdg_pass'); throw e; }
+});
+
+/* ---------- التبويبات ---------- */
+document.querySelectorAll('.tabs button').forEach(b => b.onclick = () => {
+  const t = b.dataset.tab;
+  document.querySelectorAll('.tabs button').forEach(x => x.classList.toggle('on', x === b));
+  document.querySelectorAll('main > section').forEach(s => s.hidden = s.id !== 'tab-' + t);
+  if (t === 'stats') loadStats();
+  window.scrollTo(0, 0);
+});
+
+/* ---------- الجهات ---------- */
+function renderEnts() {
+  const a = DATA.entities;
+  if (!a.length) { $('#entList').innerHTML = '<div class="empty">لا توجد جهات بعد — أضف أول جهة</div>'; return; }
+  $('#entList').innerHTML = a.map((e, i) => `
+    <div class="ent ${e.active ? '' : 'off'}">
+      <div class="ord">
+        <button data-up="${i}" ${i === 0 ? 'disabled' : ''}>▲</button>
+        <button data-down="${i}" ${i === a.length - 1 ? 'disabled' : ''}>▼</button>
+      </div>
+      <div class="ic">${ico(e.icon)}</div>
+      <div class="info">
+        <b>${esc(e.name)}</b>
+        <small>${esc(e.id)} · رمز المحطة: <span class="pin">${esc(e.pin)}</span>${e.active ? '' : ' · <span class="tag-off">معطلة</span>'}</small>
+        <div class="chips">${e.types.map(catChip).join('')}</div>
+      </div>
+      <div class="acts">
+        <button class="btn sm" data-edit="${esc(e.id)}"><i class="ti ti-edit"></i> تعديل</button>
+        <button class="btn sm danger" data-del="${esc(e.id)}"><i class="ti ti-trash"></i> حذف</button>
+      </div>
+    </div>`).join('');
+}
+$('#entList').onclick = e => {
+  const t = e.target.closest('button');
+  if (!t) return;
+  if ('up' in t.dataset) move(+t.dataset.up, -1);
+  else if ('down' in t.dataset) move(+t.dataset.down, 1);
+  else if (t.dataset.edit) openEnt(t.dataset.edit);
+  else if (t.dataset.del) delEnt(t.dataset.del);
+};
+function move(i, d) {
+  const a = DATA.entities, j = i + d;
+  if (j < 0 || j >= a.length) return;
+  [a[i], a[j]] = [a[j], a[i]];
+  $('#saveOrder').hidden = false;
+  renderEnts();
+}
+$('#saveOrder').onclick = () => run(async () => {
+  await api('reorder', { ids: DATA.entities.map(e => e.id) });
+  $('#saveOrder').hidden = true;
+  toast('تم حفظ الترتيب');
+  await load();
+});
+function delEnt(id) {
+  const e = DATA.entities.find(x => x.id === id);
+  if (!confirm('حذف الجهة «' + e.name + '»؟\nإذا كانت لها زيارات مسجلة سيتم تعطيلها فقط.')) return;
+  run(async () => {
+    const r = await api('deleteEntity', { id });
+    toast(r.mode === 'disabled' ? 'الجهة لها زيارات، تم تعطيلها' : 'تم حذف الجهة');
+    await load();
+  });
+}
+
+const randPin = () => String(Math.floor(1000 + Math.random() * 9000));
+$('#iconPick').innerHTML = ICONS.map(i => `<button type="button" data-i="${i}" title="${i}"><i class="ti ti-${i}"></i></button>`).join('');
+function iconPreview() {
+  const v = $('#fIcon').value.trim();
+  $('#fIconPrev').innerHTML = ico(v || 'building');
+  document.querySelectorAll('#iconPick button').forEach(b => b.classList.toggle('on', b.dataset.i === v));
+}
+$('#iconPick').onclick = e => { const b = e.target.closest('button'); if (b) { $('#fIcon').value = b.dataset.i; iconPreview(); } };
+$('#fIcon').oninput = iconPreview;
+$('#fPinGen').onclick = () => $('#fPin').value = randPin();
+$('#addEnt').onclick = () => openEnt('');
+$('#mClose').onclick = () => $('#modal').hidden = true;
+$('#modal').onclick = e => { if (e.target.id === 'modal') $('#modal').hidden = true; };
+
+function openEnt(id) {
+  const e = DATA.entities.find(x => x.id === id) || { id: '', name: '', icon: 'building', description: '', active: true, types: [], pin: randPin() };
+  $('#mTitle').textContent = id ? 'تعديل جهة' : 'إضافة جهة';
+  $('#fId').value = e.id;
+  $('#fName').value = e.name;
+  $('#fPin').value = e.pin;
+  $('#fIcon').value = e.icon;
+  iconPreview();
+  $('#fDesc').value = e.description;
+  $('#fActive').checked = e.active;
+  $('#fTypes').innerHTML = DATA.categories.filter(c => c.active).map(c =>
+    `<label><input type="checkbox" value="${esc(c.id)}" ${e.types.includes(c.id) ? 'checked' : ''}> <span class="dot" style="background:${esc(c.color)}"></span> ${esc(c.name)}</label>`).join('');
+  $('#modal').hidden = false;
+}
+$('#entForm').onsubmit = ev => {
+  ev.preventDefault();
+  const entity = {
+    id: $('#fId').value, name: $('#fName').value, pin: $('#fPin').value.trim(), icon: $('#fIcon').value,
+    description: $('#fDesc').value, active: $('#fActive').checked,
+    types: [...document.querySelectorAll('#fTypes input:checked')].map(c => c.value)
+  };
+  run(async () => {
+    await api('saveEntity', { entity });
+    $('#modal').hidden = true;
+    toast('تم الحفظ');
+    await load();
+  });
+};
+
+$('#printPins').onclick = () => {
+  const rows = DATA.entities.filter(e => e.active).map((e, i) =>
+    `<tr><td>${i + 1}</td><td>${esc(e.name)}</td><td class="p">${esc(e.pin)}</td></tr>`).join('');
+  $('#printArea').innerHTML = `<h2 style="font-family:Tajawal,Tahoma,sans-serif;margin-bottom:4mm">${esc(setVal('expo_name'))} — رموز دخول محطات الجهات</h2>
+    <p style="font-family:Tajawal,Tahoma,sans-serif;margin-bottom:4mm;direction:ltr;text-align:right">${esc(BASE)}station.html</p>
+    <table class="stable"><tr><th>#</th><th>الجهة</th><th>رمز الدخول</th></tr>${rows}</table>
+    <p style="font-family:Tajawal,Tahoma,sans-serif;margin-top:4mm">رمز محطة المدخل: <b style="letter-spacing:2mm">${esc(setVal('entrance_pin'))}</b> — ${esc(BASE)}entrance.html</p>`;
+  doPrint();
+};
+
+/* ---------- المصفوفة ---------- */
+function renderMatrix() {
+  MX = {};
+  DATA.entities.forEach(e => MX[e.id] = new Set(e.types));
+  drawMatrix();
+}
+function drawMatrix() {
+  const cats = DATA.categories.filter(c => c.active);
+  if (!DATA.entities.length) { $('#matrix').innerHTML = '<div class="empty">أضف جهات أولًا</div>'; return; }
+  const head = '<tr><th>الجهة</th>' + cats.map(c => `<th><span class="dot" style="background:${esc(c.color)}"></span><br>${esc(c.name)}</th>`).join('') + '</tr>';
+  const rows = DATA.entities.map(e => `<tr class="${e.active ? '' : 'off'}"><td>${ico(e.icon)} ${esc(e.name)}</td>` +
+    cats.map(c => `<td><button class="star ${MX[e.id].has(c.id) ? 'on' : ''}" data-e="${esc(e.id)}" data-c="${esc(c.id)}">★</button></td>`).join('') + '</tr>').join('');
+  const foot = '<tr class="foot"><td>عدد الجهات المستهدِفة</td>' +
+    cats.map(c => `<td>${DATA.entities.filter(e => e.active && MX[e.id].has(c.id)).length}</td>`).join('') + '</tr>';
+  $('#matrix').innerHTML = `<table>${head}${rows}${foot}</table>`;
+}
+$('#matrix').onclick = e => {
+  const s = e.target.closest('.star');
+  if (!s) return;
+  const set = MX[s.dataset.e];
+  set.has(s.dataset.c) ? set.delete(s.dataset.c) : set.add(s.dataset.c);
+  drawMatrix();
+};
+$('#saveMatrix').onclick = () => run(async () => {
+  const map = {};
+  Object.keys(MX).forEach(k => map[k] = [...MX[k]]);
+  await api('saveMatrix', { map });
+  toast('تم حفظ الارتباطات');
+  await load();
+});
+
+/* ---------- الباجات ---------- */
+function renderBadges() {
+  $('#catCards').innerHTML = DATA.categories.map(c => `
+    <div class="cat">
+      <div class="hd" style="background:${esc(c.color)}"><b>${esc(c.name)}</b><span title="الرقم الأول في الكود">${c.prefix}xxxxx</span></div>
+      <div class="bd">
+        <div><small>المخطط</small><b>${c.planned}</b></div>
+        <div><small>المولّد</small><b>${c.generated}</b></div>
+        <div><small>المفعّل</small><b>${c.activated}</b></div>
+      </div>
+      <div class="ft"><input type="number" min="1" max="2000" placeholder="عدد" data-gen="${esc(c.id)}" inputmode="numeric">
+        <button class="btn sm" data-genbtn="${esc(c.id)}"><i class="ti ti-plus"></i> توليد إضافي</button></div>
+    </div>`).join('');
+  const sel = $('#pCat'), cur = sel.value;
+  sel.innerHTML = DATA.categories.map(c => `<option value="${esc(c.id)}">${esc(c.name)} (${c.generated})</option>`).join('');
+  if (cur && catOf(cur)) sel.value = cur;
+  syncRange();
+}
+function syncRange() {
+  const c = catOf($('#pCat').value);
+  if (!c) return;
+  $('#pTo').value = c.generated || 1;
+  $('#pTo').max = c.generated; $('#pFrom').max = c.generated;
+  $('#pPreview').innerHTML = c.generated ? badgeHtml(Badge.make(c.prefix, 1), c, true) : '<span class="hint" style="margin:0">لم تُولَّد باجات لهذه الفئة بعد</span>';
+}
+$('#pCat').onchange = syncRange;
+
+$('#catCards').onclick = e => {
+  const b = e.target.closest('[data-genbtn]');
+  if (!b) return;
+  const id = b.dataset.genbtn, n = +document.querySelector(`[data-gen="${id}"]`).value;
+  if (!(n > 0)) return toast('اكتب عدد الباجات المطلوب توليدها', true);
+  if (!confirm(`توليد ${n} باجة إضافية لفئة «${catOf(id).name}»؟`)) return;
+  run(async () => {
+    const r = await api('generateBadges', { counts: { [id]: n } });
+    toast(`تم توليد ${r.created} باجة`);
+    await load();
+  }, 'جارٍ التوليد…');
+};
+$('#genPlanned').onclick = () => {
+  const counts = {};
+  let total = 0;
+  DATA.categories.forEach(c => { const n = Math.max(0, c.planned - c.generated); if (n) { counts[c.id] = n; total += n; } });
+  if (!total) return toast('كل الفئات وصلت لعددها المخطط. لتوليد المزيد استخدم «توليد إضافي» أو عدّل العدد المخطط من الإعدادات.');
+  const msg = DATA.categories.filter(c => counts[c.id]).map(c => `${c.name}: ${counts[c.id]}`).join('\n');
+  if (!confirm(`سيتم توليد ${total} باجة:\n${msg}`)) return;
+  run(async () => {
+    const r = await api('generateBadges', { counts });
+    toast(`تم توليد ${r.created} باجة`);
+    await load();
+  }, 'جارٍ التوليد…');
+};
+
+/* تصميم الباجة (مشترك بين المعاينة والطباعة) */
+function badgeHtml(code, c, preview) {
+  const style = preview ? 'style="border:1px solid #ddd;border-radius:6px;box-shadow:0 4px 14px rgba(0,0,0,.08)"' : '';
+  return `<div class="bdg" ${style}>
+    <div class="band" style="background:${esc(c.color)}"><b>${esc(c.name)}</b><img src="logo-white.png" alt=""></div>
+    <div class="ex">${esc(setVal('expo_name'))}</div>
+    <div class="bc"><div class="lin">${Badge.svg(code, { height: 40 })}<div class="num">${code}</div></div><div class="qr">${Badge.qr(code)}</div></div>
+    <div class="org">${esc(setVal('organizer'))}</div>
+  </div>`;
+}
+function printBadges(list) {
+  if (!list.length) return toast('لا توجد باجات في هذا النطاق', true);
+  let html = '';
+  for (let i = 0; i < list.length; i += 8) {
+    html += '<div class="ppage">' + list.slice(i, i + 8).map(b => badgeHtml(b.code, catOf(b.category))).join('') + '</div>';
+  }
+  $('#printArea').innerHTML = html;
+  doPrint();
+}
+function doPrint() {
+  document.body.classList.add('printing');
+  setTimeout(() => window.print(), 300);
+}
+window.addEventListener('afterprint', () => document.body.classList.remove('printing'));
+
+$('#printRange').onclick = () => {
+  const from = +$('#pFrom').value || 1, to = +$('#pTo').value || 1;
+  if (to < from) return toast('رقم البداية أكبر من النهاية', true);
+  run(async () => {
+    const r = await api('badgeList', { category: $('#pCat').value, from, to });
+    printBadges(r.badges);
+  }, 'جارٍ تجهيز الطباعة…');
+};
+$('#printCodes').onclick = () => {
+  const codes = $('#pCodes').value.split(/[\s,،]+/).map(Badge.normalize).filter(Boolean);
+  if (!codes.length) return toast('اكتب رقمًا واحدًا على الأقل', true);
+  const bad = codes.filter(c => !Badge.valid(c));
+  if (bad.length) return toast('أرقام غير صحيحة: ' + bad.join('، '), true);
+  run(async () => {
+    const r = await api('badgeList', { codes });
+    if (r.badges.length < codes.length) toast('بعض الأرقام غير مولّدة في النظام', true);
+    printBadges(r.badges);
+  });
+};
+$('#exportCsv').onclick = () => run(async () => {
+  let rows = ['code,category,serial'];
+  for (const c of DATA.categories) {
+    if (!c.generated) continue;
+    const r = await api('badgeList', { category: c.id, from: 1, to: 9999 });
+    r.badges.forEach(b => rows.push(`${b.code},${c.name},${b.serial}`));
+  }
+  download('badges.csv', new Blob(['﻿' + rows.join('\r\n')], { type: 'text/csv;charset=utf-8' }));
+}, 'جارٍ التصدير…');
+
+$('#lookForm').onsubmit = e => {
+  e.preventDefault();
+  const code = Badge.normalize($('#lookCode').value);
+  if (!code) return;
+  run(async () => {
+    try {
+      const { badge: b } = await api('badgeLookup', { code });
+      $('#lookRes').innerHTML = `<div class="lk">
+        <div class="head"><span class="code">${b.code}</span>
+          <span class="chips"><span style="background:${esc(b.category.color)};font-size:13px">${esc(b.category.name)}</span></span></div>
+        <p class="hint" style="margin-bottom:8px">${b.activated ? `مفعّلة: ${esc(b.activated)} (${esc(b.activatedBy)})` : 'غير مفعّلة بعد'}</p>
+        ${b.visits.length ? '<ul>' + b.visits.map(v => `<li><span>${esc(v.entity)}${v.status !== 'مقبولة' ? ' <small class="tag-off">(مكررة)</small>' : ''}</span><span>${esc(v.time)}</span></li>`).join('') + '</ul>'
+          : '<p class="hint">لا توجد زيارات</p>'}</div>`;
+    } catch (err) {
+      $('#lookRes').innerHTML = `<div class="lk"><p class="tag-off">${esc(err.message)}</p></div>`;
+    }
+    $('#lookCode').select();
+  });
+};
+
+/* ---------- الإحصاءات ---------- */
+$('#reloadStats').onclick = () => loadStats();
+async function loadStats() {
+  $('#statsBox').innerHTML = '<div class="empty"><div class="spin"></div></div>';
+  try { const { stats } = await api('stats'); renderStats(stats); }
+  catch (e) { $('#statsBox').innerHTML = `<div class="empty">${esc(e.message)}</div>`; }
+}
+function renderStats(s) {
+  const T = s.totals, cats = s.byCategory, R = s.ratings;
+  const maxE = Math.max(1, ...s.entities.map(b => b.visits));
+  const maxH = Math.max(1, ...s.hours.map(h => Math.max(h.visits, h.entries)));
+  const kpi = (l, v) => `<div class="kpi"><small>${l}</small><b>${v}</b></div>`;
+  const pct = T.badges ? Math.round(100 * T.attended / T.badges) : 0;
+  $('#statsBox').innerHTML = `
+    <div class="kpis">
+      ${kpi('الحضور (باجات مفعّلة)', T.attended)}
+      ${kpi('نسبة الحضور من الباجات', pct + '%')}
+      ${kpi('إجمالي الزيارات', T.visits)}
+      ${kpi('متوسط الجهات لكل زائر', T.avgEntities)}
+      ${kpi('حضروا ولم يزوروا أي جهة', T.noVisit)}
+      ${kpi('متوسط مدة البقاء', T.avgStayMin ? T.avgStayMin + ' دقيقة' : '—')}
+      ${kpi('مسح مكرر', T.duplicates)}
+      ${kpi('عدد التقييمات', T.ratings)}
+      ${kpi('متوسط التقييم', T.avgRating ? T.avgRating + ' / 5' : '—')}
+    </div>
+
+    <div class="card"><h3>الفئات وقياس الاستهداف</h3><div class="tbl"><table>
+      <tr><th>الفئة</th><th>الباجات</th><th>الحضور</th><th>الزيارات</th><th>متوسط الجهات</th><th>الجهات المستهدِفة</th><th>متوسط ما زاره منها</th><th>تغطية الاستهداف</th><th>زيارات للجهات المستهدِفة</th><th>التقييم</th></tr>
+      ${cats.map(c => `<tr><td><span class="dot" style="background:${esc(c.color)}"></span> ${esc(c.name)}</td><td>${c.badges}</td><td>${c.attended}</td><td>${c.visits}</td><td>${c.avgEntities}</td>
+        <td>${c.recTotal}</td><td>${c.avgRecVisited} من ${c.recTotal}</td><td>${c.recCoverage}%</td><td>${c.recShare}%</td><td>${c.ratings ? c.avgRating + ' (' + c.ratings + ')' : '—'}</td></tr>`).join('')}
+    </table></div>
+    <p class="hint" style="margin:10px 0 0">«تغطية الاستهداف» = نسبة ما زاره حاضرو الفئة من الجهات المستهدِفة لهم. «زيارات للجهات المستهدِفة» = كم من زياراتهم كانت لجهات تستهدفهم.</p></div>
+
+    <div class="card"><h3>زيارات كل جهة حسب الفئة</h3><div class="tbl"><table>
+      <tr><th>الجهة</th><th>الإجمالي</th>${cats.map(c => `<th><span class="dot" style="background:${esc(c.color)}"></span> ${esc(c.name)}</th>`).join('')}</tr>
+      ${s.entities.map((e, i) => `<tr><td>${i + 1}. ${ico(e.icon)} ${esc(e.name)}${e.active ? '' : ' <small class="tag-off">معطلة</small>'}
+        <div class="barln"><i style="width:${Math.round(100 * e.visits / maxE)}%"></i></div></td>
+        <td><b>${e.visits}</b></td>${cats.map(c => `<td>${e.byCategory[c.id] || 0}</td>`).join('')}</tr>`).join('')}
+    </table></div></div>
+
+    <div class="card"><h3>أكثر الجهات زيارة لكل فئة</h3><div class="tops">
+      ${cats.map(c => `<div><b><span class="dot" style="background:${esc(c.color)}"></span> ${esc(c.name)}</b>${c.top.length
+        ? '<ol>' + c.top.map(x => `<li>${esc(x.name)} — ${x.visits}</li>`).join('') + '</ol>' : '<p class="hint">لا توجد زيارات بعد</p>'}</div>`).join('')}
+    </div></div>
+
+    <div class="card"><h3>الحضور والزيارات حسب الساعة</h3>
+      ${s.hours.length ? s.hours.map(h => `<div style="display:grid;grid-template-columns:50px 1fr 60px;gap:10px;align-items:center;margin-bottom:8px">
+        <span style="direction:ltr">${h.h}:00</span>
+        <div><div class="barln" style="height:10px"><i style="width:${Math.round(100 * h.visits / maxH)}%"></i></div>
+             <div class="barln" style="height:6px;margin-top:2px;background:var(--gold-l)"><i style="width:${Math.round(100 * h.entries / maxH)}%;background:var(--gold)"></i></div></div>
+        <small>${h.visits} زيارة<br>${h.entries} دخول</small></div>`).join('')
+        : '<p class="hint">لا توجد بيانات بعد</p>'}
+    </div>
+
+    <div class="card"><h3>التقييمات</h3><div class="tbl"><table>
+      <tr><th>السؤال</th><th>المتوسط</th></tr>
+      ${Object.keys(Q_LABELS).filter(k => R.avg[k]).map(k => `<tr><td>${Q_LABELS[k]}</td><td>${R.avg[k]}</td></tr>`).join('') || '<tr><td>لا توجد تقييمات</td><td>—</td></tr>'}
+      <tr><td>توزيع التقييم العام</td><td>${R.dist.map((n, i) => `${i + 1}★: ${n}`).join(' · ')}</td></tr>
+      <tr><td>تقييمات بدون تحديد الفئة</td><td>${R.unknownCategory}</td></tr>
+    </table></div></div>
+
+    <div class="card"><h3>ملاحظات الزوار (${(s.notes || []).length})</h3>
+      ${(s.notes || []).map(n => `<div class="note">${esc(n.text)}<br><small>${catName(n.category)} · ${n.overall ? n.overall + '★' : ''} · ${esc(n.time)}</small></div>`).join('') || '<p class="hint">لا توجد ملاحظات بعد</p>'}
+    </div>
+    <p class="hint">آخر تحديث: ${esc(s.updated)} — لتنزيل البيانات كاملة استخدم «تصدير Excel».</p>`;
+}
+
+/* ---------- التصدير ---------- */
+const XLSX_LIB = 'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js';
+function loadXlsx() {
+  if (window.XLSX) return Promise.resolve();
+  return new Promise((ok, bad) => {
+    const s = document.createElement('script');
+    s.src = XLSX_LIB; s.onload = ok; s.onerror = () => bad(new Error('تعذر تحميل مكتبة Excel'));
+    document.head.appendChild(s);
+  });
+}
+function download(name, blob) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = name;
+  document.body.appendChild(a); a.click();
+  setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+}
+function toCsv(rows) {
+  if (!rows.length) return '';
+  const head = Object.keys(rows[0]);
+  const cell = v => { v = v == null ? '' : String(v); return /[",\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; };
+  return [head.map(cell).join(',')].concat(rows.map(r => head.map(h => cell(r[h])).join(','))).join('\r\n');
+}
+$('#exportXlsx').onclick = () => run(async () => {
+  const d = await api('export');
+  const stamp = new Date().toISOString().slice(0, 10);
+  const sheets = [['الحضور', d.badges], ['الزيارات', d.visits], ['التقييمات', d.ratings], ['الجهات', d.entities]];
+  try {
+    await loadXlsx();
+    const wb = XLSX.utils.book_new();
+    wb.Workbook = { Views: [{ RTL: true }] };
+    sheets.forEach(([name, rows]) => {
+      const ws = rows.length ? XLSX.utils.json_to_sheet(rows) : XLSX.utils.aoa_to_sheet([['لا توجد بيانات']]);
+      if (rows.length) ws['!cols'] = Object.keys(rows[0]).map(k => ({ wch: Math.max(12, k.length + 4) }));
+      XLSX.utils.book_append_sheet(wb, ws, name);
+    });
+    XLSX.writeFile(wb, `badges-data-${stamp}.xlsx`);
+  } catch (e) {
+    sheets.forEach(([name, rows]) => download(`${name}-${stamp}.csv`, new Blob(['﻿' + toCsv(rows)], { type: 'text/csv;charset=utf-8' })));
+  }
+  toast('تم تنزيل البيانات');
+}, 'جارٍ التصدير…');
+
+/* ---------- الإعدادات ---------- */
+function renderSettings() {
+  const links = [
+    ['door-enter', 'محطة المدخل (تفعيل الباجات)', BASE + 'entrance.html'],
+    ['barcode', 'محطة الجهة', BASE + 'station.html'],
+    ['star', 'شاشة التقييم عند المخرج', BASE + 'kiosk.html'],
+    ['layout-dashboard', 'شاشة Dashboard', BASE + 'dashboard.html'],
+    ['settings', 'لوحة الإدارة', BASE + 'admin.html']
+  ];
+  $('#links').innerHTML = links.map(l => `
+    <div class="lnk"><div class="t"><b>${ico(l[0])} ${l[1]}</b><code>${esc(l[2])}</code></div>
+    <button class="btn sm" data-copy="${esc(l[2])}"><i class="ti ti-copy"></i> نسخ</button>
+    <a class="btn sm" href="${esc(l[2])}" target="_blank"><i class="ti ti-external-link"></i> فتح</a></div>`).join('');
+
+  $('#setForm').innerHTML = '<h3><i class="ti ti-settings"></i> إعدادات المعرض</h3>' + DATA.settings.map(s => {
+    const label = `<span>${esc(SET_LABELS[s.key] || s.key)}</span>`, note = s.note ? `<small>${esc(s.note)}</small>` : '';
+    if (s.key === 'kiosk_questions') {
+      const on = s.value.split(',').map(x => x.trim());
+      return `<div class="fld">${label}<div class="checks">${Object.keys(Q_LABELS).map(k =>
+        `<label><input type="checkbox" data-q value="${k}" ${on.includes(k) ? 'checked' : ''}> ${Q_LABELS[k]}</label>`).join('')}</div>${note}</div>`;
+    }
+    if (YESNO[s.key]) return `<label class="fld">${label}<select name="${s.key}"><option ${s.value === 'نعم' ? 'selected' : ''}>نعم</option><option ${s.value !== 'نعم' ? 'selected' : ''}>لا</option></select>${note}</label>`;
+    const num = /_sec$/.test(s.key);
+    return `<label class="fld">${label}<input name="${esc(s.key)}" value="${esc(s.value)}" ${num ? 'type="number" min="3" inputmode="numeric"' : ''}>${note}</label>`;
+  }).join('') + `<button class="btn pri block" type="submit"><i class="ti ti-device-floppy"></i> حفظ الإعدادات</button>`;
+
+  $('#catBox').innerHTML = DATA.categories.map((c, i) => `
+    <div class="crow" data-i="${i}">
+      <div class="pf" title="الرقم الأول في الكود">${c.prefix}</div>
+      <input type="text" class="nm" value="${esc(c.name)}">
+      <input type="color" class="cl" value="${esc(c.color)}">
+      <input type="number" class="pl" value="${c.planned}" min="0" inputmode="numeric" title="العدد المخطط">
+      <div class="checks"><label><input type="checkbox" class="ac" ${c.active ? 'checked' : ''}> نشطة</label></div>
+    </div>`).join('');
+}
+$('#links').onclick = e => {
+  const b = e.target.closest('[data-copy]');
+  if (!b) return;
+  const text = b.dataset.copy;
+  const fallback = () => {
+    const t = document.createElement('textarea');
+    t.value = text; t.style.position = 'fixed'; t.style.opacity = '0';
+    document.body.appendChild(t); t.select();
+    let ok = false; try { ok = document.execCommand('copy'); } catch (er) {}
+    t.remove(); toast(ok ? 'تم نسخ الرابط' : 'تعذر النسخ', !ok);
+  };
+  if (navigator.clipboard && window.isSecureContext) navigator.clipboard.writeText(text).then(() => toast('تم نسخ الرابط'), fallback);
+  else fallback();
+};
+$('#setForm').onsubmit = e => {
+  e.preventDefault();
+  const f = e.target, obj = {};
+  DATA.settings.forEach(s => {
+    if (s.key === 'kiosk_questions') obj[s.key] = [...f.querySelectorAll('[data-q]:checked')].map(c => c.value).join(',');
+    else if (f.elements[s.key]) obj[s.key] = f.elements[s.key].value;
+  });
+  if (!obj.kiosk_questions) return toast('اختر سؤالًا واحدًا على الأقل لشاشة التقييم', true);
+  run(async () => {
+    await api('saveSettings', { settings: obj });
+    if (obj.admin_password && obj.admin_password.trim() !== PASS) { PASS = obj.admin_password.trim(); SS.set('bdg_pass', PASS); }
+    toast('تم حفظ الإعدادات');
+    await load();
+  });
+};
+$('#saveCats').onclick = () => {
+  const categories = [...document.querySelectorAll('#catBox .crow')].map(r => {
+    const c = DATA.categories[+r.dataset.i];
+    return { id: c.id, name: r.querySelector('.nm').value, color: r.querySelector('.cl').value,
+             planned: r.querySelector('.pl').value, active: r.querySelector('.ac').checked };
+  });
+  run(async () => { await api('saveCategories', { categories }); toast('تم حفظ الفئات'); await load(); });
+};
+$('#resetData').onclick = () => {
+  const withBadges = $('#resetBadges').checked;
+  const c = prompt((withBadges ? 'سيتم حذف كل الزيارات والتقييمات والباجات المولّدة نهائيًا.' : 'سيتم حذف كل الزيارات والتقييمات وإلغاء تفعيل الباجات.') + '\nللتأكيد اكتب كلمة: مسح');
+  if (c === null) return;
+  run(async () => {
+    await api('resetData', { confirm: c.trim(), badges: withBadges });
+    $('#resetBadges').checked = false;
+    toast('تم مسح بيانات التجربة');
+    await load();
+  });
+};
+</script>
+</body>
+</html>
