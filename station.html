@@ -1,0 +1,281 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="color-scheme" content="only light">
+<meta name="theme-color" content="#0d5237">
+<title>محطة الجهة</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="station.css">
+<script src="icons.js"></script>
+<script src="config.js"></script>
+<script src="api.js"></script>
+<script src="badge.js"></script>
+<script src="scan.js"></script>
+</head>
+<body>
+
+<div class="login" id="loginView" hidden>
+  <form id="loginForm">
+    <img src="logo.png" alt="جامعة القصيم">
+    <h1>محطة الجهة</h1>
+    <p id="lExpo">اختر الجهة وأدخل رمزها</p>
+    <select id="lEntity" required><option value="">— اختر الجهة —</option></select>
+    <input id="lPin" type="password" inputmode="numeric" autocomplete="off" placeholder="رمز الجهة" required>
+    <div class="err" id="lErr"></div>
+    <button class="btn pri block" type="submit"><i class="ti ti-door-enter"></i> دخول</button>
+  </form>
+</div>
+
+<div class="app" id="appView" hidden>
+  <header class="top">
+    <img src="logo-white.png" alt="">
+    <div class="who"><div class="ic" id="eIcon"></div><div><b id="eName"></b><small id="eExpo"></small></div></div>
+    <div class="net" id="net"><i class="d"></i><span>متصل</span></div>
+    <button class="tb" id="muteBtn" title="الصوت"><i class="ti ti-volume"></i></button>
+    <button class="tb" id="logoutBtn" title="خروج"><i class="ti ti-logout"></i></button>
+  </header>
+
+  <div class="body">
+    <section class="result idle" id="result"></section>
+    <aside class="side">
+      <div class="panel">
+        <h3><i class="ti ti-users"></i> زوار الجهة اليوم</h3>
+        <div class="count" id="cToday">0</div>
+        <div class="cats" id="cCats"></div>
+      </div>
+      <div class="panel recent">
+        <h3><i class="ti ti-clock"></i> آخر الزوار</h3>
+        <ul id="recent"></ul>
+      </div>
+    </aside>
+  </div>
+
+  <footer class="bottom">
+    <input id="codeIn" type="text" inputmode="numeric" autocomplete="off" maxlength="12" placeholder="امسح الباجة أو اكتب رقمها">
+    <span class="pend" id="pend" hidden></span>
+    <button class="btn" id="camBtn"><i class="ti ti-camera"></i> <span>مسح بالكاميرا</span></button>
+  </footer>
+</div>
+
+<div id="camFlash" hidden><div></div></div>
+
+<script>
+const $ = s => document.querySelector(s);
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const ico = n => /^[a-z0-9-]+$/.test(String(n || '')) ? `<i class="ti ti-${n}"></i>` : esc(n || '');
+const LS = Scan.LS;
+
+let CFG = null;                 // { expo, categories, entities }
+let AUTH = null;                // { entity, pin }
+let ENT = null;                 // { id, name, icon, types }
+let STATS = { today: 0, byCategory: {}, recent: [] };
+let Q = null, last = { code: '', t: 0 }, idleT = null, busy = false;
+
+const catByCode = code => (CFG.categories || []).find(c => String(c.prefix) === String(code)[0]) || { name: 'غير معروفة', color: '#7a8580' };
+const catById = id => (CFG.categories || []).find(c => c.id === id) || { name: id || '', color: '#7a8580' };
+const ERR = {
+  INVALID: 'رقم الباجة غير صحيح',
+  UNKNOWN: 'الباجة غير مسجلة في النظام',
+  NOT_ACTIVATED: 'الباجة غير مفعّلة — وجّه الزائر لمحطة المدخل'
+};
+
+/* ---------- البدء ---------- */
+(async function boot() {
+  try { CFG = JSON.parse(LS.get('st_cfg') || 'null'); } catch (e) { CFG = null; }
+  try { AUTH = JSON.parse(LS.get('st_auth') || 'null'); } catch (e) { AUTH = null; }
+  try {
+    const c = await expoApi('config', {}, { tries: 2, timeout: 8000 });
+    CFG = { expo: c.expo, categories: c.categories, entities: c.entities };
+    LS.set('st_cfg', JSON.stringify(CFG));
+  } catch (e) {
+    if (!CFG) { showLogin(e.message); return; }
+  }
+  if (AUTH) {
+    try {
+      const r = await expoApi('entityLogin', AUTH, { tries: 2, timeout: 8000 });
+      return enter(r.entity, r.stats);
+    } catch (e) {
+      if (e.network) {                     // دون إنترنت: ندخل بالبيانات المحفوظة
+        const saved = JSON.parse(LS.get('st_ent') || 'null');
+        if (saved && saved.id === AUTH.entity) return enter(saved, null);
+      } else { AUTH = null; LS.del('st_auth'); }
+    }
+  }
+  showLogin();
+})();
+
+function showLogin(msg) {
+  $('#appView').hidden = true;
+  $('#loginView').hidden = false;
+  $('#lErr').textContent = msg || '';
+  if (CFG) {
+    $('#lExpo').textContent = CFG.expo.name || 'اختر الجهة وأدخل رمزها';
+    $('#lEntity').innerHTML = '<option value="">— اختر الجهة —</option>' +
+      CFG.entities.map(e => `<option value="${esc(e.id)}">${esc(e.name)}</option>`).join('');
+  }
+}
+$('#loginForm').onsubmit = async ev => {
+  ev.preventDefault();
+  const auth = { entity: $('#lEntity').value, pin: $('#lPin').value.trim() };
+  if (!auth.entity) return;
+  $('#lErr').textContent = 'جارٍ الدخول…';
+  try {
+    const r = await expoApi('entityLogin', auth, { tries: 2, timeout: 10000 });
+    AUTH = auth;
+    LS.set('st_auth', JSON.stringify(AUTH));
+    $('#lPin').value = '';
+    enter(r.entity, r.stats);
+  } catch (e) { $('#lErr').textContent = e.message; }
+};
+
+function enter(ent, stats) {
+  ENT = ent;
+  LS.set('st_ent', JSON.stringify(ent));
+  Q = Scan.queue('st_q_' + ent.id);
+  $('#loginView').hidden = true;
+  $('#appView').hidden = false;
+  $('#eIcon').innerHTML = ico(ent.icon);
+  $('#eName').textContent = ent.name;
+  $('#eExpo').textContent = CFG.expo.name || '';
+  document.title = 'محطة — ' + ent.name;
+  if (stats) STATS = stats;
+  renderStats(); idle(); netState();
+  if (!window.__attached) {
+    Scan.attach($('#codeIn'), handle, { paused: () => !$('#loginView').hidden });
+    window.__attached = true;
+  }
+  flush();
+}
+
+$('#logoutBtn').onclick = () => {
+  if (Q && Q.size()) return alert('يوجد ' + Q.size() + ' مسح لم يُرسل بعد. انتظر عودة الاتصال قبل الخروج.');
+  if (!confirm('الخروج من محطة «' + ENT.name + '»؟')) return;
+  AUTH = null; LS.del('st_auth'); LS.del('st_ent');
+  showLogin();
+};
+$('#muteBtn').onclick = () => { const m = Scan.toggleMute(); $('#muteBtn').innerHTML = ico(m ? 'volume-off' : 'volume'); };
+if (Scan.isMuted()) $('#muteBtn').innerHTML = ico('volume-off');
+$('#camBtn').onclick = () => Scan.camera(handle);
+
+/* ---------- عرض النتيجة ---------- */
+function idle() {
+  const r = $('#result');
+  r.className = 'result idle';
+  r.innerHTML = `<div class="big">${ico('barcode')}</div><h2>جاهز للمسح</h2>
+    <div class="sub">${Scan.touch ? 'اضغط «مسح بالكاميرا» أو اكتب رقم الباجة' : 'امسح باجة الزائر بجهاز السحب'}</div>`;
+}
+function show(kind, html, flashText, color) {
+  clearTimeout(idleT);
+  const r = $('#result');
+  r.className = 'result ' + kind;
+  r.innerHTML = html;
+  idleT = setTimeout(idle, kind === 'bad' ? 5000 : 4000);
+  Scan.beep(kind);
+  // تنبيه فوق الكاميرا إذا كانت مفتوحة
+  const ov = document.getElementById('camOverlay');
+  if (ov && !ov.hidden) {
+    const f = $('#camFlash');
+    f.firstElementChild.textContent = flashText;
+    f.firstElementChild.style.background = { ok: '#17955a', dup: '#1d6fb8', bad: '#c0392b', saved: '#c98a12' }[kind];
+    f.hidden = false;
+    clearTimeout(f._t); f._t = setTimeout(() => f.hidden = true, 1800);
+  }
+}
+const visitedText = n => n === 1 ? 'أول جهة يزورها' : n === 2 ? 'زار جهتين' : n <= 10 ? `زار ${n} جهات` : `زار ${n} جهة`;
+const catPill = c => `<div class="cat" style="background:${esc(c.color)}">${esc(c.name)}</div>`;
+
+/* ---------- معالجة المسح ---------- */
+async function handle(code, source) {
+  const now = Date.now();
+  if (code === last.code && now - last.t < 4000) return;   // مسح مزدوج لنفس الباجة
+  last = { code, t: now };
+  if (!Badge.valid(code)) {
+    return show('bad', `<div class="big">${ico('alert-triangle')}</div><h2>${ERR.INVALID}</h2><div class="code">${esc(code)}</div>`, ERR.INVALID);
+  }
+  const item = { code, sid: Scan.sid(), at: new Date().toISOString(), source };
+  const cat = catByCode(code);
+  if (Q.size() || !navigator.onLine) return saveOffline(item, cat);   // نحافظ على ترتيب المسحات المنتظرة
+  try {
+    // محاولة واحدة سريعة؛ إن تأخر الرد يُحفظ المسح ويُرسل لاحقًا (ولا يتكرر بفضل معرّف المسح)
+    const r = await expoApi('scan', Object.assign({}, AUTH, item), { tries: 1, timeout: 5000 });
+    netState(true);
+    STATS = r.stats; renderStats();
+    const c = r.category;
+    if (r.status === 'new') {
+      show('ok', `<div class="big">${ico('circle-check')}</div><h2>تم تسجيل الزيارة</h2>${catPill(c)}
+        <div class="code">${esc(r.code)}</div>
+        <div class="tags">${r.recommended ? '<span>⭐ من الفئة المستهدفة</span>' : ''}<span>${visitedText(r.visitedCount)}</span>${r.autoActivated ? '<span>فُعّلت الباجة تلقائيًا</span>' : ''}</div>`,
+        '✓ ' + c.name);
+    } else {
+      show('dup', `<div class="big">${ico('info-circle')}</div><h2>سبق تسجيل هذا الزائر</h2>${catPill(c)}
+        <div class="code">${esc(r.code)}</div><div class="sub">لم تُحتسب زيارة جديدة</div>`, 'مسجّل مسبقًا');
+    }
+  } catch (e) {
+    if (e.network) return saveOffline(item, cat);
+    if (e.message === 'رمز الجهة غير صحيح' || e.message === 'هذه الجهة غير مفعّلة') { AUTH = null; LS.del('st_auth'); return showLogin(e.message); }
+    const msg = ERR[e.message] || e.message;
+    show('bad', `<div class="big">${ico('alert-triangle')}</div><h2>${esc(msg)}</h2><div class="code">${esc(code)}</div>`, msg);
+  }
+}
+
+function saveOffline(item, cat) {
+  Q.push(item);
+  netState(false);
+  STATS.recent = [{ code: item.code, category: cat.id, time: new Date().toTimeString().slice(0, 5), status: 'pending' }].concat(STATS.recent || []).slice(0, 10);
+  renderStats();
+  show('saved', `<div class="big">${ico('cloud-upload')}</div><h2>تم حفظ المسح</h2>${catPill(cat)}
+    <div class="code">${esc(item.code)}</div><div class="sub">لا يوجد اتصال — سيُرسل تلقائيًا عند عودة الإنترنت</div>`, 'محفوظ دون إنترنت');
+}
+
+/* إرسال المسحات المحفوظة بالترتيب */
+async function flush() {
+  if (busy || !Q || !Q.size()) { netState(); return; }
+  busy = true;
+  try {
+    for (const item of Q.all()) {
+      try {
+        const r = await expoApi('scan', Object.assign({}, AUTH, item), { tries: 1, timeout: 8000 });
+        Q.remove(item.sid);
+        if (r.stats) STATS = r.stats;
+      } catch (e) {
+        if (e.network) break;
+        Q.remove(item.sid);                      // مرفوض نهائيًا (مثلًا باجة غير مسجلة)
+      }
+    }
+  } finally { busy = false; renderStats(); netState(); }
+}
+setInterval(flush, 8000);
+window.addEventListener('online', flush);
+setInterval(async () => {                        // تحديث العداد (لو عملت أكثر من محطة لنفس الجهة)
+  if (!AUTH || !ENT || (Q && Q.size())) return;
+  try { const r = await expoApi('entityStats', AUTH, { tries: 1, timeout: 8000 }); STATS = r.stats; renderStats(); netState(true); }
+  catch (e) { if (e.network) netState(false); }
+}, 30000);
+
+function netState(online) {
+  const n = Q ? Q.size() : 0;
+  const off = online === false || n > 0 || !navigator.onLine;
+  $('#net').className = 'net' + (off ? ' off' : '');
+  $('#net span').textContent = off ? 'دون اتصال' : 'متصل';
+  $('#pend').hidden = !n;
+  $('#pend').textContent = `⏳ ${n} بانتظار الإرسال`;
+}
+
+function renderStats() {
+  const pending = Q ? Q.size() : 0;
+  $('#cToday').innerHTML = `${(STATS.today || 0) + pending}${pending ? '<small>منها ' + pending + ' بانتظار الإرسال</small>' : ''}`;
+  $('#cCats').innerHTML = (CFG.categories || []).map(c => `<div><i style="background:${esc(c.color)}"></i><span>${esc(c.name)}${ENT && ENT.types && ENT.types.includes(c.id) ? ' ⭐' : ''}</span><b>${(STATS.byCategory || {})[c.id] || 0}</b></div>`).join('');
+  const list = STATS.recent || [];
+  $('#recent').innerHTML = list.length ? list.map(v => {
+    const c = catById(v.category);
+    const m = v.status === 'pending' ? '⏳ بانتظار الإرسال' : v.status !== 'مقبولة' ? 'مكررة' : esc(c.name);
+    return `<li><i class="c" style="background:${esc(c.color)}"></i><span class="cd">${esc(v.code)}</span><span class="m">${m}</span><time>${esc(v.time)}</time></li>`;
+  }).join('') : '<li class="empty">لا توجد زيارات بعد</li>';
+}
+</script>
+</body>
+</html>

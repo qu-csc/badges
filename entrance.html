@@ -1,0 +1,246 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="color-scheme" content="only light">
+<meta name="theme-color" content="#0d5237">
+<title>محطة المدخل</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="station.css">
+<script src="icons.js"></script>
+<script src="config.js"></script>
+<script src="api.js"></script>
+<script src="badge.js"></script>
+<script src="scan.js"></script>
+<style>
+.cats div b small{color:var(--muted);font-weight:500;font-size:12px}
+.bar{height:6px;border-radius:6px;background:var(--pri-l);overflow:hidden;margin:2px 20px 4px 0}
+.bar i{display:block;height:100%;border-radius:6px}
+</style>
+</head>
+<body>
+
+<div class="login" id="loginView" hidden>
+  <form id="loginForm">
+    <img src="logo.png" alt="جامعة القصيم">
+    <h1>محطة المدخل</h1>
+    <p id="lExpo">تفعيل باجات الزوار عند الدخول</p>
+    <input id="lPin" type="password" inputmode="numeric" autocomplete="off" placeholder="رمز محطة المدخل" required>
+    <div class="err" id="lErr"></div>
+    <button class="btn pri block" type="submit"><i class="ti ti-door-enter"></i> دخول</button>
+  </form>
+</div>
+
+<div class="app" id="appView" hidden>
+  <header class="top">
+    <img src="logo-white.png" alt="">
+    <div class="who"><div class="ic"><i class="ti ti-door-enter"></i></div><div><b>محطة المدخل</b><small id="eExpo"></small></div></div>
+    <div class="net" id="net"><i class="d"></i><span>متصل</span></div>
+    <button class="tb" id="muteBtn" title="الصوت"><i class="ti ti-volume"></i></button>
+    <button class="tb" id="logoutBtn" title="خروج"><i class="ti ti-logout"></i></button>
+  </header>
+
+  <div class="body">
+    <section class="result idle" id="result"></section>
+    <aside class="side">
+      <div class="panel">
+        <h3><i class="ti ti-users"></i> إجمالي الحضور</h3>
+        <div class="count" id="cTotal">0</div>
+        <div class="cats" id="cCats"></div>
+      </div>
+      <div class="panel recent">
+        <h3><i class="ti ti-clock"></i> آخر الباجات المفعّلة من هذا الجهاز</h3>
+        <ul id="recent"></ul>
+      </div>
+    </aside>
+  </div>
+
+  <footer class="bottom">
+    <input id="codeIn" type="text" inputmode="numeric" autocomplete="off" maxlength="12" placeholder="امسح الباجة أو اكتب رقمها">
+    <span class="pend" id="pend" hidden></span>
+    <button class="btn" id="camBtn"><i class="ti ti-camera"></i> <span>مسح بالكاميرا</span></button>
+  </footer>
+</div>
+
+<div id="camFlash" hidden><div></div></div>
+
+<script>
+const $ = s => document.querySelector(s);
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const ico = n => /^[a-z0-9-]+$/.test(String(n || '')) ? `<i class="ti ti-${n}"></i>` : esc(n || '');
+const LS = Scan.LS;
+
+let CFG = null, PIN = null, ATT = { total: 0, byCategory: {} };
+let Q = Scan.queue('en_q'), last = { code: '', t: 0 }, idleT = null, busy = false;
+let RECENT = [];
+try { RECENT = JSON.parse(LS.get('en_recent') || '[]'); } catch (e) { RECENT = []; }
+
+const catByCode = code => (CFG.categories || []).find(c => String(c.prefix) === String(code)[0]) || { id: '', name: 'غير معروفة', color: '#7a8580' };
+const ERR = { INVALID: 'رقم الباجة غير صحيح', UNKNOWN: 'الباجة غير مسجلة في النظام' };
+
+(async function boot() {
+  try { CFG = JSON.parse(LS.get('en_cfg') || 'null'); } catch (e) { CFG = null; }
+  PIN = LS.get('en_pin');
+  try {
+    const c = await expoApi('config', {}, { tries: 2, timeout: 8000 });
+    CFG = { expo: c.expo, categories: c.categories };
+    LS.set('en_cfg', JSON.stringify(CFG));
+  } catch (e) {
+    if (!CFG) return showLogin(e.message);
+  }
+  if (PIN) {
+    try { const r = await expoApi('entranceLogin', { pin: PIN }, { tries: 2, timeout: 8000 }); return enter(r); }
+    catch (e) { if (e.network) return enter(null); PIN = null; LS.del('en_pin'); }
+  }
+  showLogin();
+})();
+
+function showLogin(msg) {
+  $('#appView').hidden = true;
+  $('#loginView').hidden = false;
+  $('#lErr').textContent = msg || '';
+  if (CFG) $('#lExpo').textContent = (CFG.expo.name || '') + ' — تفعيل باجات الزوار';
+}
+$('#loginForm').onsubmit = async ev => {
+  ev.preventDefault();
+  const pin = $('#lPin').value.trim();
+  $('#lErr').textContent = 'جارٍ الدخول…';
+  try {
+    const r = await expoApi('entranceLogin', { pin }, { tries: 2, timeout: 10000 });
+    PIN = pin; LS.set('en_pin', pin); $('#lPin').value = '';
+    enter(r);
+  } catch (e) { $('#lErr').textContent = e.message; }
+};
+
+function enter(r) {
+  if (r) { ATT = r.attendance; if (r.categories) CFG.categories = r.categories; }
+  $('#loginView').hidden = true;
+  $('#appView').hidden = false;
+  $('#eExpo').textContent = CFG.expo.name || '';
+  render(); idle(); netState();
+  if (!window.__attached) { Scan.attach($('#codeIn'), handle, { paused: () => !$('#loginView').hidden }); window.__attached = true; }
+  flush();
+}
+$('#logoutBtn').onclick = () => {
+  if (Q.size()) return alert('يوجد ' + Q.size() + ' تفعيل لم يُرسل بعد. انتظر عودة الاتصال قبل الخروج.');
+  if (!confirm('الخروج من محطة المدخل؟')) return;
+  PIN = null; LS.del('en_pin'); showLogin();
+};
+$('#muteBtn').onclick = () => { const m = Scan.toggleMute(); $('#muteBtn').innerHTML = ico(m ? 'volume-off' : 'volume'); };
+if (Scan.isMuted()) $('#muteBtn').innerHTML = ico('volume-off');
+$('#camBtn').onclick = () => Scan.camera(handle);
+
+function idle() {
+  const r = $('#result');
+  r.className = 'result idle';
+  r.innerHTML = `<div class="big">${ico('id-badge-2')}</div><h2>جاهز لتفعيل الباجات</h2>
+    <div class="sub">${Scan.touch ? 'اضغط «مسح بالكاميرا» أو اكتب رقم الباجة' : 'امسح الباجة بجهاز السحب عند تسليمها للزائر'}</div>`;
+}
+function show(kind, html, flashText) {
+  clearTimeout(idleT);
+  const r = $('#result');
+  r.className = 'result ' + kind;
+  r.innerHTML = html;
+  idleT = setTimeout(idle, kind === 'bad' ? 5000 : 3500);
+  Scan.beep(kind);
+  const ov = document.getElementById('camOverlay');
+  if (ov && !ov.hidden) {
+    const f = $('#camFlash');
+    f.firstElementChild.textContent = flashText;
+    f.firstElementChild.style.background = { ok: '#17955a', dup: '#1d6fb8', bad: '#c0392b', saved: '#c98a12' }[kind];
+    f.hidden = false;
+    clearTimeout(f._t); f._t = setTimeout(() => f.hidden = true, 1800);
+  }
+}
+const catPill = c => `<div class="cat" style="background:${esc(c.color)}">${esc(c.name)}</div>`;
+function addRecent(code, cat, status) {
+  RECENT = [{ code, cat: cat.id, time: new Date().toTimeString().slice(0, 5), status }].concat(RECENT.filter(x => x.code !== code)).slice(0, 12);
+  LS.set('en_recent', JSON.stringify(RECENT));
+}
+
+async function handle(code, source) {
+  const now = Date.now();
+  if (code === last.code && now - last.t < 4000) return;
+  last = { code, t: now };
+  if (!Badge.valid(code)) return show('bad', `<div class="big">${ico('alert-triangle')}</div><h2>${ERR.INVALID}</h2><div class="code">${esc(code)}</div>`, ERR.INVALID);
+  const cat = catByCode(code);
+  const item = { code, sid: Scan.sid() };
+  if (Q.size() || !navigator.onLine) return saveOffline(item, cat);
+  try {
+    const r = await expoApi('activate', { pin: PIN, code }, { tries: 1, timeout: 5000 });
+    netState(true);
+    ATT = r.attendance;
+    if (r.status === 'new') {
+      addRecent(code, r.category, 'new');
+      show('ok', `<div class="big">${ico('circle-check')}</div><h2>تم تفعيل الباجة</h2>${catPill(r.category)}<div class="code">${esc(code)}</div><div class="sub">أهلًا بالزائر 👋</div>`, '✓ ' + r.category.name);
+    } else {
+      addRecent(code, r.category, 'already');
+      show('dup', `<div class="big">${ico('info-circle')}</div><h2>الباجة مفعّلة مسبقًا</h2>${catPill(r.category)}<div class="code">${esc(code)}</div><div class="sub">فُعّلت الساعة ${esc(r.time)}</div>`, 'مفعّلة مسبقًا');
+    }
+    render();
+  } catch (e) {
+    if (e.network) return saveOffline(item, cat);
+    if (e.message === 'رمز محطة المدخل غير صحيح') { PIN = null; LS.del('en_pin'); return showLogin(e.message); }
+    const msg = ERR[e.message] || e.message;
+    show('bad', `<div class="big">${ico('alert-triangle')}</div><h2>${esc(msg)}</h2><div class="code">${esc(code)}</div>`, msg);
+  }
+}
+function saveOffline(item, cat) {
+  if (!Q.has(item.code)) Q.push(item);
+  addRecent(item.code, cat, 'pending');
+  netState(false); render();
+  show('saved', `<div class="big">${ico('cloud-upload')}</div><h2>تم حفظ التفعيل</h2>${catPill(cat)}<div class="code">${esc(item.code)}</div><div class="sub">لا يوجد اتصال — سيُرسل تلقائيًا عند عودة الإنترنت</div>`, 'محفوظ دون إنترنت');
+}
+async function flush() {
+  if (busy || !PIN || !Q.size()) { netState(); return; }
+  busy = true;
+  try {
+    for (const item of Q.all()) {
+      try {
+        const r = await expoApi('activate', { pin: PIN, code: item.code }, { tries: 1, timeout: 8000 });
+        Q.remove(item.sid); ATT = r.attendance;
+        RECENT.forEach(x => { if (x.code === item.code && x.status === 'pending') x.status = 'new'; });
+        LS.set('en_recent', JSON.stringify(RECENT));
+      } catch (e) {
+        if (e.network) break;
+        Q.remove(item.sid);
+      }
+    }
+  } finally { busy = false; render(); netState(); }
+}
+setInterval(flush, 8000);
+window.addEventListener('online', flush);
+setInterval(async () => {                       // تحديث العداد من محطات المدخل الأخرى
+  if (!PIN || Q.size()) return;
+  try { const r = await expoApi('entranceStats', { pin: PIN }, { tries: 1, timeout: 8000 }); ATT = r.attendance; render(); netState(true); }
+  catch (e) { if (e.network) netState(false); }
+}, 20000);
+
+function netState(online) {
+  const n = Q.size();
+  const off = online === false || n > 0 || !navigator.onLine;
+  $('#net').className = 'net' + (off ? ' off' : '');
+  $('#net span').textContent = off ? 'دون اتصال' : 'متصل';
+  $('#pend').hidden = !n;
+  $('#pend').textContent = `⏳ ${n} بانتظار الإرسال`;
+}
+function render() {
+  const n = Q.size();
+  $('#cTotal').innerHTML = `${(ATT.total || 0) + n}${n ? '<small>منها ' + n + ' بانتظار الإرسال</small>' : ''}`;
+  $('#cCats').innerHTML = (CFG.categories || []).map(c => {
+    const a = (ATT.byCategory || {})[c.id] || 0, g = c.generated || 0;
+    return `<div><i style="background:${esc(c.color)}"></i><span>${esc(c.name)}</span><b>${a}${g ? ' <small>من ' + g + '</small>' : ''}</b></div>
+      <div class="bar"><i style="width:${g ? Math.min(100, Math.round(100 * a / g)) : 0}%;background:${esc(c.color)}"></i></div>`;
+  }).join('');
+  $('#recent').innerHTML = RECENT.length ? RECENT.map(v => {
+    const c = (CFG.categories || []).find(x => x.id === v.cat) || { color: '#7a8580', name: '' };
+    const m = v.status === 'pending' ? '⏳ بانتظار الإرسال' : v.status === 'already' ? 'مفعّلة مسبقًا' : esc(c.name);
+    return `<li><i class="c" style="background:${esc(c.color)}"></i><span class="cd">${esc(v.code)}</span><span class="m">${m}</span><time>${esc(v.time)}</time></li>`;
+  }).join('') : '<li class="empty">لم تُفعَّل باجات من هذا الجهاز بعد</li>';
+}
+</script>
+</body>
+</html>
