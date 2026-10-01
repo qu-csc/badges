@@ -1,0 +1,343 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="color-scheme" content="only light">
+<meta name="theme-color" content="#093b28">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<title>شاشة التقييم</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
+<script src="icons.js"></script>
+<script src="config.js"></script>
+<script src="api.js"></script>
+<style>
+:root{color-scheme:light;--pri:#13704d;--pri-d:#0d5237;--pri-dd:#093b28;--acc:#1aa6a2;--gold:#e0b832;--gold-d:#c9a227;--ink:#1b2a24}
+*{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
+.ti{display:inline-block;width:1em;height:1em;line-height:1;vertical-align:-.15em;flex:0 0 auto}
+.ti svg{display:block;width:100%;height:100%}
+button,textarea{-webkit-appearance:none;appearance:none}
+html,body{height:100%}
+body{font-family:'Tajawal',-apple-system,BlinkMacSystemFont,'Segoe UI',Tahoma,'Noto Sans Arabic',Arial,sans-serif;color:#fff;background:#0d5237;background:radial-gradient(circle at 20% 10%,var(--pri) 0%,var(--pri-d) 40%,var(--pri-dd) 100%);
+  overflow:hidden;user-select:none;-webkit-user-select:none;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+button,textarea{font:inherit;color:inherit}
+button{cursor:pointer;border:0;background:none}
+[hidden]{display:none!important}
+.deco{position:fixed;border-radius:50%;pointer-events:none}
+.deco.a{width:50vmax;height:50vmax;top:-20vmax;left:-18vmax;background:rgba(255,255,255,.05)}
+.deco.b{width:36vmax;height:36vmax;bottom:-14vmax;right:-10vmax;background:rgba(26,166,162,.14)}
+.brand{position:fixed;top:2.5vh;left:0;right:0;display:flex;flex-direction:column;align-items:center;gap:.5vh;pointer-events:none;z-index:1}
+.brand img{height:clamp(38px,6vh,70px);width:auto}
+.expo{font-size:clamp(14px,1.9vw,21px);opacity:.85;font-weight:700;padding:0 70px}
+.org{position:fixed;bottom:1.6vh;left:0;right:0;text-align:center;font-size:clamp(12px,1.4vw,16px);opacity:.6;pointer-events:none}
+.fs{position:fixed;top:2vh;left:2vw;width:44px;height:44px;border-radius:12px;background:rgba(255,255,255,.1);font-size:22px;opacity:.5;z-index:5;display:grid;place-items:center}
+.screen{position:fixed;top:0;right:0;bottom:0;left:0;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:15vh 5vw 6vh;text-align:center;overflow-y:auto;-webkit-overflow-scrolling:touch}
+.screen > *{flex:0 0 auto}
+/* توسيط آمن: إذا زاد المحتوى عن الشاشة يبدأ من الأعلى ولا يُقص */
+.screen{justify-content:flex-start}
+.screen > :first-child{margin-top:auto}
+.screen > :last-child{margin-bottom:auto}
+h1{font-size:clamp(30px,min(6vw,7vh),70px);font-weight:800;line-height:1.25;margin-bottom:.6vh;animation:up .6s ease both}
+.sub{font-size:clamp(15px,2.2vw,24px);opacity:.85;margin-bottom:2.6vh}
+.q{width:100%;max-width:900px;margin-bottom:1.6vh;animation:up .5s ease both}
+.q p{font-size:clamp(17px,2.6vw,28px);font-weight:700;margin-bottom:.6vh}
+.stars{display:flex;justify-content:center;gap:clamp(4px,1.5vw,18px);direction:rtl}
+.stars button{font-size:clamp(52px,min(11vw,13vh),120px);line-height:1;color:rgba(255,255,255,.22);transition:transform .15s,color .15s,text-shadow .2s}
+.multi .stars button{font-size:clamp(40px,min(7.5vw,7vh),80px)}
+.multi .q{margin-bottom:.6vh}
+.multi .word{min-height:1.3em;font-size:clamp(15px,2vw,22px)}
+.stars button.on{color:var(--gold);text-shadow:0 0 30px rgba(224,184,50,.55)}
+.stars button:active{transform:scale(1.2)}
+.word{display:block;min-height:1.5em;font-size:clamp(17px,2.4vw,28px);font-weight:800;color:var(--gold)}
+
+/* الفئة (اختياري) */
+.catw{width:100%;max-width:960px;margin:1vh 0 2vh;animation:up .6s ease both}
+.catw p{font-size:clamp(16px,2.2vw,24px);font-weight:700;margin-bottom:1.2vh;opacity:.92}
+.catw p small{opacity:.65;font-weight:500;font-size:.8em}
+.cats{display:grid;grid-template-columns:repeat(var(--n,4),1fr);gap:clamp(8px,1.4vw,16px)}
+.cat{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.8vh;padding:clamp(10px,2vh,22px) 8px;border-radius:22px;background:rgba(255,255,255,.08);border:3px solid rgba(255,255,255,.14);transition:background .15s,border-color .15s,transform .15s;min-height:clamp(86px,15vh,150px)}
+.cat .ic{width:clamp(44px,7vh,68px);height:clamp(44px,7vh,68px);border-radius:50%;display:grid;place-items:center;font-size:clamp(24px,4vh,38px);background:var(--c);color:#fff;box-shadow:0 6px 18px rgba(0,0,0,.2)}
+.cat b{font-size:clamp(14px,1.9vw,21px);line-height:1.3}
+.cat:active{transform:scale(.96)}
+.cat.on{background:#fff;border-color:var(--c);color:var(--ink)}
+.cat.on .ic::after{content:''}
+.cats.picked .cat:not(.on){opacity:.5}
+
+.noteBtn{font-size:clamp(15px,2vw,20px);opacity:.8;text-decoration:underline;margin-bottom:1.6vh;display:inline-flex;align-items:center;gap:6px}
+textarea{width:100%;max-width:760px;min-height:12vh;border-radius:20px;border:2px solid rgba(255,255,255,.25);background:rgba(255,255,255,.1);padding:16px;font-size:max(16px,min(2vw,22px));margin-bottom:1.6vh;resize:none;user-select:text;-webkit-user-select:text}
+textarea::placeholder{color:rgba(255,255,255,.55)}
+textarea:focus{outline:none;border-color:var(--gold)}
+.send{background:linear-gradient(135deg,var(--gold),var(--gold-d));color:var(--ink);font-weight:800;font-size:clamp(22px,3.2vw,36px);padding:1.8vh 9vw;border-radius:24px;box-shadow:0 14px 40px rgba(0,0,0,.25);transition:.2s}
+.send:disabled{opacity:.3;box-shadow:none}
+.send:active{transform:scale(.97)}
+.thx .big{font-size:clamp(90px,16vw,180px);color:var(--gold);animation:pop .6s ease both}
+.thx h1{margin-top:1vh}
+.ringw{position:relative;width:74px;height:74px;margin-top:4vh;opacity:.85}
+.ringw svg{transform:rotate(-90deg)}
+.ringw b{position:absolute;top:0;right:0;bottom:0;left:0;display:grid;place-items:center;font-size:24px}
+#ringC{transition:stroke-dashoffset 1s linear}
+.tap{margin-top:1.5vh;opacity:.6;font-size:clamp(14px,1.8vw,18px)}
+.conf{position:fixed;top:-20px;font-size:28px;pointer-events:none;animation:fall linear forwards}
+@keyframes fall{to{transform:translateY(110vh) rotate(540deg);opacity:.3}}
+@keyframes up{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:none}}
+@keyframes pop{0%{opacity:0;transform:scale(.4)}70%{transform:scale(1.1)}100%{opacity:1;transform:none}}
+.status{position:fixed;bottom:5vh;left:2vw;font-size:13px;opacity:.7;background:rgba(0,0,0,.18);border-radius:10px;padding:4px 10px}
+.status:empty{display:none}
+.spin{width:54px;height:54px;border:5px solid rgba(255,255,255,.2);border-top-color:#fff;border-radius:50%;animation:sp .8s linear infinite;margin:0 auto 16px}
+.loadmsg{font-size:18px;opacity:.9;max-width:520px;line-height:1.7}
+@keyframes sp{to{transform:rotate(360deg)}}
+@media (max-width:640px){
+  .cats{grid-template-columns:1fr 1fr}
+  .cat{min-height:84px}
+}
+</style>
+</head>
+<body>
+<div class="deco a"></div><div class="deco b"></div>
+<div class="brand"><img src="logo-white.png" alt="جامعة القصيم"><div class="expo" id="expo"></div></div>
+<div class="org" id="org"></div>
+<button class="fs" id="fsBtn" title="ملء الشاشة" aria-label="ملء الشاشة"><i class="ti ti-maximize"></i></button>
+
+<section class="screen" id="sLoad"><div><div class="spin"></div><p class="loadmsg" id="loadMsg">جارٍ التحميل…</p></div></section>
+
+<section class="screen" id="sRate" hidden>
+  <h1>كيف كانت تجربتك؟</h1>
+  <p class="sub" id="rSub">اختر عدد النجوم</p>
+  <div id="qs" style="width:100%;display:flex;flex-direction:column;align-items:center"></div>
+  <div class="catw" id="catw" hidden>
+    <p>عرّفنا بنفسك <small>(اختياري)</small></p>
+    <div class="cats" id="cats"></div>
+  </div>
+  <button class="noteBtn" id="noteBtn"><i class="ti ti-writing"></i> إضافة ملاحظة أو اقتراح (اختياري)</button>
+  <textarea id="note" maxlength="600" placeholder="اكتب ملاحظتك أو اقتراحك…" hidden></textarea>
+  <button class="send" id="send" disabled>إرسال</button>
+</section>
+
+<section class="screen thx" id="sThx" hidden>
+  <div class="big"><i class="ti ti-star-filled"></i></div>
+  <h1>شكرًا لك 🌟</h1>
+  <p class="sub">سعدنا بزيارتك، رأيك يساعدنا على التطوير</p>
+  <div class="ringw"><svg width="74" height="74"><circle cx="37" cy="37" r="32" stroke="rgba(255,255,255,.15)" stroke-width="6" fill="none"/>
+    <circle id="ringC" cx="37" cy="37" r="32" stroke="#e0b832" stroke-width="6" fill="none" stroke-linecap="round" stroke-dasharray="201"/></svg><b id="ringN"></b></div>
+  <p class="tap">المس الشاشة للبدء من جديد</p>
+</section>
+
+<div class="status" id="status"></div>
+
+<script>
+const Q_TEXT = {
+  overall: 'تجربتك العامة في المعرض',
+  benefit: 'مدى استفادتك من المعرض',
+  organization: 'تنظيم المعرض',
+  content: 'محتوى الجهات المشاركة'
+};
+const WORDS = ['ضعيف', 'مقبول', 'جيد', 'جيد جدًا', 'ممتاز'];
+// أيقونة لكل فئة (وأي فئة جديدة تأخذ أيقونة عامة)
+const CAT_ICON = { student: 'school', faculty: 'chalkboard', staff: 'briefcase', external: 'world' };
+const IDLE_MS = 45000;          // يعود للبداية إذا تُركت الشاشة في منتصف التقييم
+const CFG_EVERY = 3 * 60000;    // تحديث الإعدادات كل 3 دقائق (إذا غيّرها المسؤول)
+const QKEY = 'kq_items', CKEY = 'kq_cfg';
+
+const $ = s => document.querySelector(s);
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const okColor = c => /^#[0-9a-f]{3,8}$/i.test(String(c || '')) ? c : '#7a8580';
+const LS = {
+  get: k => { try { return localStorage.getItem(k); } catch (e) { return null; } },
+  set: (k, v) => { try { localStorage.setItem(k, v); } catch (e) {} }
+};
+
+let EXPO = null, CATS = [], QS = [], ANS = {}, CAT = '', idleT, resetT, cdT, cfgKey = '';
+
+function api(action, data, tries) {
+  return expoApi(action, data, { tries: tries || 3, timeout: 10000 });
+}
+
+function show(id) {
+  ['sLoad', 'sRate', 'sThx'].forEach(s => $('#' + s).hidden = s !== id);
+}
+
+/* الإعدادات: من الخادم، وإلا آخر نسخة محفوظة على الجهاز */
+async function loadConfig(first) {
+  let c = null;
+  try {
+    c = await api('config');
+    LS.set(CKEY, JSON.stringify({ expo: c.expo, categories: c.categories }));
+  } catch (e) {
+    try { c = JSON.parse(LS.get(CKEY) || 'null'); } catch (x) { c = null; }
+    if (!c) {
+      if (first) {
+        $('#loadMsg').textContent = window.expoReady ? 'تعذر الاتصال — ستُعاد المحاولة تلقائيًا… (' + e.message + ')' : e.message;
+        setTimeout(() => loadConfig(true), 5000);
+      }
+      return;
+    }
+  }
+  apply(c, first);
+}
+
+function apply(c, force) {
+  EXPO = c.expo || {};
+  CATS = (c.categories || []).filter(x => x.active !== false);
+  $('#expo').textContent = EXPO.name || '';
+  $('#org').textContent = EXPO.organizer || '';
+  document.title = 'شاشة التقييم — ' + (EXPO.name || '');
+  const qs = (EXPO.kioskQuestions || ['overall']).filter(k => Q_TEXT[k]);
+  QS = qs.length ? qs : ['overall'];
+  const key = JSON.stringify([QS, EXPO.kioskAskCategory, CATS.map(x => [x.id, x.name, x.color])]);
+  // نعيد بناء الشاشة عند البداية، أو إذا تغيّرت الإعدادات والشاشة غير مستخدمة الآن
+  if (force || (key !== cfgKey && !$('#sRate').hidden && !busy())) { cfgKey = key; reset(); }
+}
+
+function busy() { return Object.keys(ANS).length > 0 || !!CAT || ($('#note').value || '').trim() !== ''; }
+
+function reset() {
+  clearTimeout(resetT); clearInterval(cdT); clearTimeout(idleT);
+  ANS = {}; CAT = '';
+  const single = QS.length === 1;
+  $('#rSub').textContent = single ? 'اختر عدد النجوم ثم اضغط إرسال' : 'قيّم كل بند بالنجوم ثم اضغط إرسال';
+  $('#qs').className = single ? '' : 'multi';
+  $('#qs').innerHTML = QS.map((k, i) => `
+    <div class="q" data-q="${k}" style="animation-delay:${i * .08}s">
+      ${single ? '' : `<p>${Q_TEXT[k]}</p>`}
+      <div class="stars" role="radiogroup" aria-label="${Q_TEXT[k]}">${[1, 2, 3, 4, 5].map(n => `<button type="button" data-n="${n}" aria-label="${n} من 5">★</button>`).join('')}</div>
+      <span class="word">&nbsp;</span>
+    </div>`).join('');
+
+  const ask = !!EXPO.kioskAskCategory && CATS.length > 0;
+  $('#catw').hidden = !ask;
+  if (ask) {
+    $('#cats').style.setProperty('--n', Math.min(4, CATS.length));
+    $('#cats').className = 'cats';
+    $('#cats').innerHTML = CATS.map(x => `<button type="button" class="cat" data-c="${esc(x.id)}" style="--c:${okColor(x.color)}">
+        <span class="ic"><i class="ti ti-${CAT_ICON[x.id] || 'user'}"></i></span><b>${esc(x.name)}</b></button>`).join('');
+  }
+  $('#note').value = '';
+  $('#note').hidden = true;
+  $('#noteBtn').hidden = false;
+  $('#send').disabled = true;
+  show('sRate');
+  $('#sRate').scrollTop = 0;
+}
+
+function poke() {
+  clearTimeout(idleT);
+  idleT = setTimeout(() => { if (!$('#sRate').hidden && busy()) reset(); }, IDLE_MS);
+}
+
+$('#qs').onclick = e => {
+  const s = e.target.closest('[data-n]');
+  if (!s) return;
+  const q = s.closest('.q'), n = +s.dataset.n;
+  ANS[q.dataset.q] = n;
+  q.querySelectorAll('[data-n]').forEach(x => x.classList.toggle('on', +x.dataset.n <= n));
+  q.querySelector('.word').textContent = WORDS[n - 1];
+  $('#send').disabled = !QS.every(k => ANS[k]);
+  poke();
+};
+$('#cats').onclick = e => {
+  const b = e.target.closest('[data-c]');
+  if (!b) return;
+  CAT = CAT === b.dataset.c ? '' : b.dataset.c;     // ضغطة ثانية تلغي الاختيار
+  $('#cats').querySelectorAll('.cat').forEach(x => x.classList.toggle('on', x.dataset.c === CAT));
+  $('#cats').classList.toggle('picked', !!CAT);
+  poke();
+};
+$('#noteBtn').onclick = () => { $('#noteBtn').hidden = true; $('#note').hidden = false; $('#note').focus(); poke(); };
+$('#note').oninput = poke;
+
+$('#send').onclick = () => {
+  if ($('#send').disabled) return;
+  $('#send').disabled = true;
+  // rid يمنع احتساب التقييم مرتين عند إعادة الإرسال بعد انقطاع
+  const item = {
+    rid: 'K' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7),
+    answers: Object.assign({}, ANS),
+    category: CAT || null,
+    notes: $('#note').value.trim()
+  };
+  thanks();
+  api('rate', item).catch(e => {
+    if (e.network) { const q = queue(); q.push(item); saveQueue(q); status(); }
+  });
+};
+
+/* شاشة الشكر مع العدّ التنازلي */
+function thanks() {
+  clearTimeout(idleT);
+  show('sThx');
+  confetti();
+  const sec = Math.max(3, EXPO.kioskResetSec || 6);
+  let left = sec;
+  const draw = () => {
+    $('#ringN').textContent = left;
+    $('#ringC').style.strokeDashoffset = 201 - 201 * (left / sec);
+  };
+  draw();
+  cdT = setInterval(() => { left--; if (left >= 0) draw(); }, 1000);
+  resetT = setTimeout(afterThanks, sec * 1000);
+}
+function afterThanks() {
+  // إن تغيّرت الإعدادات أثناء التقييم تُطبَّق الآن
+  let c = null;
+  try { c = JSON.parse(LS.get(CKEY) || 'null'); } catch (e) {}
+  if (c) apply(c, true); else reset();
+}
+$('#sThx').onclick = () => afterThanks();
+
+function confetti() {
+  const set = ['⭐', '🌟', '✨', '💚', '💙'];
+  for (let i = 0; i < 22; i++) {
+    const s = document.createElement('span');
+    s.className = 'conf';
+    s.textContent = set[i % set.length];
+    s.style.left = Math.random() * 100 + 'vw';
+    s.style.animationDuration = (2 + Math.random() * 2) + 's';
+    s.style.animationDelay = Math.random() * .6 + 's';
+    document.body.appendChild(s);
+    setTimeout(() => s.remove(), 5000);
+  }
+}
+
+/* طابور احتياطي إذا انقطع الإنترنت */
+function queue() { try { return JSON.parse(LS.get(QKEY) || '[]'); } catch (e) { return []; } }
+function saveQueue(q) { LS.set(QKEY, JSON.stringify(q)); }
+function status() { const n = queue().length; $('#status').textContent = n ? `⏳ ${n} تقييم محفوظ بانتظار الإنترنت` : ''; }
+let flushing = false;
+async function flush() {
+  if (flushing) return;
+  const q = queue();
+  if (!q.length) return;
+  flushing = true;
+  try {
+    for (const item of q) {
+      try { await api('rate', item, 1); }
+      catch (e) {
+        if (e.network) break;   // ما زال الإنترنت منقطعًا — نحاول لاحقًا
+        // رفضه الخادم (مثلًا تغيّرت الأسئلة) — لا فائدة من إعادته
+      }
+      saveQueue(queue().filter(x => x.rid !== item.rid));
+    }
+  } finally { flushing = false; status(); }
+}
+setInterval(flush, 15000);
+window.addEventListener('online', flush);
+
+/* ملء الشاشة */
+$('#fsBtn').onclick = () => {
+  const d = document.documentElement;
+  if (!document.fullscreenElement && !document.webkitFullscreenElement) (d.requestFullscreen || d.webkitRequestFullscreen || (() => {})).call(d);
+  else (document.exitFullscreen || document.webkitExitFullscreen || (() => {})).call(document);
+};
+document.addEventListener('contextmenu', e => e.preventDefault());
+
+loadConfig(true);
+setInterval(() => loadConfig(false), CFG_EVERY);
+status();
+flush();
+</script>
+</body>
+</html>

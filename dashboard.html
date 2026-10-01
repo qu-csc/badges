@@ -1,0 +1,436 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="only dark">
+<meta name="theme-color" content="#05231a">
+<title>لوحة المعرض المباشرة</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
+<script src="icons.js"></script>
+<script src="config.js"></script>
+<script src="api.js"></script>
+<style>
+:root{color-scheme:dark;
+  --bg:#05231a;--panel:rgba(255,255,255,.055);--line:rgba(255,255,255,.09);
+  --ink:#eaf5f0;--muted:#8fb2a4;--pri:#2fbf7f;--acc:#22b8b3;--gold:#e0b832;--blue:#4d8fe0;--red:#ff8a65;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
+.ti{display:inline-block;width:1em;height:1em;line-height:1;vertical-align:-.15em;flex:0 0 auto}
+.ti svg{display:block;width:100%;height:100%}
+[hidden]{display:none!important}
+button{-webkit-appearance:none;appearance:none;font:inherit;color:inherit;border:0;background:none;cursor:pointer}
+html,body{height:100%}
+body{font-family:'Tajawal',-apple-system,BlinkMacSystemFont,'Segoe UI',Tahoma,'Noto Sans Arabic',Arial,sans-serif;color:var(--ink);background:var(--bg);background:radial-gradient(ellipse at 85% -10%,#0f5a3c 0%,transparent 55%),radial-gradient(ellipse at 0% 110%,#0b3f52 0%,transparent 50%),var(--bg);overflow-x:hidden}
+.app{min-height:100vh;display:flex;flex-direction:column;gap:1.4vh;padding:2vh 1.8vw}
+
+header{display:flex;align-items:center;justify-content:space-between;gap:20px}
+.brand{display:flex;align-items:center;gap:16px;min-width:0}
+.logo{height:clamp(44px,4.6vw,84px);width:auto;padding-left:18px;border-left:1px solid var(--line)}
+.brand h1{font-size:clamp(20px,2.1vw,40px);font-weight:800;line-height:1.2}
+.brand small{color:var(--muted);font-size:clamp(13px,1vw,18px)}
+.hright{display:flex;align-items:center;gap:14px}
+.live{display:flex;align-items:center;gap:8px;background:rgba(47,191,127,.14);color:var(--pri);border-radius:40px;padding:8px 16px;font-weight:800;font-size:clamp(13px,1vw,18px);white-space:nowrap}
+.live i{width:10px;height:10px;border-radius:50%;background:var(--pri);box-shadow:0 0 0 0 rgba(47,191,127,.6);animation:ping 1.6s infinite}
+.live.off{background:rgba(255,138,101,.14);color:var(--red)}
+.live.off i{background:var(--red);animation:none}
+@keyframes ping{70%{box-shadow:0 0 0 12px rgba(47,191,127,0)}100%{box-shadow:0 0 0 0 rgba(47,191,127,0)}}
+.clock{font-size:clamp(24px,2.4vw,44px);font-weight:800;direction:ltr;font-variant-numeric:tabular-nums}
+.fs{width:42px;height:42px;border-radius:12px;background:rgba(255,255,255,.07);font-size:20px;display:grid;place-items:center;color:var(--muted)}
+
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:1.2vw}
+.kpi{background:var(--panel);border:1px solid var(--line);border-radius:24px;padding:1.6vh 1.5vw;position:relative;overflow:hidden;transition:box-shadow .4s}
+.kpi::after{content:'';position:absolute;right:-30%;bottom:-60%;width:60%;padding-bottom:60%;border-radius:50%;background:var(--glow);opacity:.14}
+.kpi .l{display:flex;align-items:center;gap:10px;color:var(--muted);font-size:clamp(14px,1.15vw,22px);font-weight:700}
+.kpi .l .ti{font-size:1.5em;color:var(--glow)}
+.kpi .v{font-size:clamp(38px,min(4vw,7vh),80px);font-weight:800;line-height:1.1;margin-top:.6vh;font-variant-numeric:tabular-nums}
+.kpi .v small{font-size:.38em;color:var(--muted);font-weight:500;margin-right:.3em}
+.kpi .s{color:var(--muted);font-size:clamp(12px,.95vw,18px)}
+.kpi.flash{box-shadow:0 0 0 2px var(--glow),0 0 40px -6px var(--glow)}
+
+.grid{display:grid;grid-template-columns:1fr 1.35fr 1fr;grid-template-rows:auto auto;gap:1.2vw;
+  grid-template-areas:"att bars cats" "hours bars rate"}
+.a-rate{grid-area:rate}.a-bars{grid-area:bars}.a-att{grid-area:att}.a-hours{grid-area:hours}.a-cats{grid-area:cats}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:24px;padding:1.8vh 1.4vw;min-height:0;display:flex;flex-direction:column}
+.panel h2{font-size:clamp(16px,1.3vw,25px);font-weight:800;margin-bottom:1.3vh;display:flex;align-items:center;gap:8px}
+.panel h2 .ti{color:var(--acc);font-size:1.2em}
+.panel h2 .hint{margin-right:auto;font-size:.62em;color:var(--muted);font-weight:500;display:flex;gap:12px;align-items:center}
+
+/* الحضور حسب الفئة */
+.donutw{display:flex;align-items:center;gap:1.4vw;flex:1}
+.donut{width:clamp(120px,min(10vw,19vh),210px);height:clamp(120px,min(10vw,19vh),210px);border-radius:50%;position:relative;flex:0 0 auto;background:rgba(255,255,255,.08)}
+.donut::after{content:'';position:absolute;top:22%;right:22%;bottom:22%;left:22%;border-radius:50%;background:#072a1f}
+.donut b{position:absolute;top:0;right:0;bottom:0;left:0;display:grid;place-items:center;align-content:center;gap:.3em;z-index:1;font-size:clamp(24px,2.1vw,40px);font-weight:800;line-height:1;text-align:center}
+.donut b small{display:block;font-size:.4em;color:var(--muted);font-weight:500}
+.legend{flex:1;display:grid;grid-template-columns:minmax(0,1fr);gap:1.3vh;min-width:0}
+.lg{min-width:0}
+.lg{font-size:clamp(14px,1.05vw,20px)}
+.lg .t{display:flex;align-items:center;gap:8px}
+.lg .t i{width:14px;height:14px;border-radius:5px;flex:0 0 auto}
+.lg .t span{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lg .t b{font-size:1.15em;font-variant-numeric:tabular-nums}
+.lg .t em{font-style:normal;color:var(--muted);font-size:.8em}
+.mini{height:5px;border-radius:5px;background:rgba(255,255,255,.07);margin-top:5px;overflow:hidden}
+.mini i{display:block;height:100%;border-radius:5px;transition:width 1s cubic-bezier(.2,.8,.2,1)}
+
+/* أكثر الجهات */
+.bars{display:grid;gap:1.25vh;flex:1;align-content:start}
+.bar{display:grid;grid-template-columns:clamp(26px,2vw,40px) 1fr auto;align-items:center;gap:12px}
+.rank{width:clamp(26px,2vw,40px);height:clamp(26px,2vw,40px);border-radius:10px;background:rgba(255,255,255,.08);display:grid;place-items:center;font-weight:800;font-size:clamp(13px,1vw,19px)}
+.bar:nth-child(1) .rank{background:var(--gold);color:#241c02}
+.bar:nth-child(2) .rank{background:#c9d6d2;color:#15241f}
+.bar:nth-child(3) .rank{background:#c98a4b;color:#241402}
+.bn{font-size:clamp(14px,1.1vw,21px);font-weight:700;margin-bottom:5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.track{height:clamp(9px,.9vh,15px);border-radius:10px;background:rgba(255,255,255,.07);overflow:hidden}
+.stack{display:flex;height:100%;transition:width 1s cubic-bezier(.2,.8,.2,1);border-radius:10px;overflow:hidden}
+.stack i{display:block;height:100%;transition:width 1s}
+.bv{font-size:clamp(18px,1.5vw,30px);font-weight:800;font-variant-numeric:tabular-nums;min-width:3ch;text-align:left}
+.keys{display:flex;flex-wrap:wrap;gap:6px 14px;margin-top:1.4vh;font-size:clamp(12px,.9vw,16px);color:var(--muted)}
+.keys span{display:inline-flex;align-items:center;gap:6px}
+.keys i{width:10px;height:10px;border-radius:3px}
+
+/* التقييم */
+.rate{display:flex;align-items:center;gap:1.4vw;margin-bottom:1.6vh}
+.rate .avg{font-size:clamp(46px,4.6vw,92px);font-weight:800;line-height:1;color:var(--gold)}
+.rate .st{font-size:clamp(20px,1.7vw,32px);color:var(--gold);letter-spacing:2px;direction:ltr;text-align:right}
+.rate .st .off{color:rgba(255,255,255,.15)}
+.rate small{color:var(--muted);font-size:clamp(13px,1vw,19px);display:block}
+.dist{display:grid;gap:.8vh}
+.dr{display:grid;grid-template-columns:3ch 1fr 4ch;gap:10px;align-items:center;font-size:clamp(13px,1vw,18px)}
+.dr .track i{display:block;height:100%;border-radius:10px;background:var(--gold);transition:width 1s}
+.dr b{text-align:left;font-variant-numeric:tabular-nums}
+.rgrid{display:grid;gap:1.4vw;min-height:0}
+.sub2{margin-top:1.8vh;display:grid;gap:.9vh;align-content:start}
+.sub2 h4{font-size:clamp(13px,.95vw,17px);color:var(--muted);font-weight:700}
+.rc{display:flex;align-items:center;gap:8px;font-size:clamp(13px,1vw,18px)}
+.rc i{width:10px;height:10px;border-radius:50%;flex:0 0 auto}
+.rc span{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rc b{color:var(--gold);font-variant-numeric:tabular-nums}
+.rc em{font-style:normal;color:var(--muted);font-size:.85em;min-width:6ch;text-align:left}
+
+/* حسب الساعة */
+.hours{display:flex;align-items:flex-end;gap:.6vw;flex:1;min-height:11vh;padding-top:3vh}
+.hc{flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;height:100%;justify-content:flex-end;min-width:0}
+.hb{display:flex;align-items:flex-end;gap:3px;width:100%;max-width:56px;height:100%;justify-content:center}
+.hb i{flex:1;border-radius:7px 7px 3px 3px;transition:height 1s cubic-bezier(.2,.8,.2,1);position:relative;min-height:3px}
+.hb i.v{background:linear-gradient(to top,#13704d,var(--acc))}
+.hb i.e{background:linear-gradient(to top,#2a4f7a,var(--blue))}
+.hb i b{position:absolute;top:-2.4vh;left:50%;transform:translateX(-50%);font-size:clamp(10px,.8vw,15px);font-style:normal;white-space:nowrap}
+.hc small{color:var(--muted);font-size:clamp(11px,.85vw,16px);direction:ltr}
+.hc.now small{color:var(--gold);font-weight:800}
+.dot{width:10px;height:10px;border-radius:3px;display:inline-block}
+
+/* حسب الفئة */
+.types{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:.8vw;flex:1;min-height:0}
+.tc{background:rgba(255,255,255,.04);border-radius:16px;padding:1.1vh .8vw;overflow:hidden;border-top:4px solid var(--c);min-width:0}
+.tc h3{font-size:clamp(14px,1vw,20px);font-weight:800;margin-bottom:.8vh;display:flex;align-items:center;gap:6px;white-space:nowrap}
+.tc h3 span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis}
+.tc h3 em{font-style:normal;font-size:.75em;color:var(--muted);font-weight:500}
+.tc h3 em b{color:var(--ink)}
+.tc h3 .ti{color:var(--c)}
+.tc .meta{color:var(--muted);font-size:clamp(12px,.85vw,16px);margin-bottom:1vh;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tc .meta b{color:var(--ink)}
+.tc ol{list-style:none;display:grid;grid-template-columns:minmax(0,1fr);gap:.6vh}
+.tc li{display:flex;justify-content:space-between;gap:8px;font-size:clamp(13px,.9vw,17px)}
+.tc li span{min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tc li b{color:var(--c);font-variant-numeric:tabular-nums;filter:brightness(1.25)}
+.tc .em{color:var(--muted);font-size:clamp(12px,.9vw,16px)}
+
+/* الشريط */
+.ticker{display:flex;align-items:center;gap:14px;background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:1.2vh 1.2vw;overflow:hidden}
+.ticker > b{white-space:nowrap;color:var(--acc);font-size:clamp(14px,1.05vw,20px)}
+.tk{display:flex;gap:10px;overflow:hidden;flex:1}
+.chip{white-space:nowrap;background:rgba(255,255,255,.06);border-radius:30px;padding:6px 14px;font-size:clamp(13px,1vw,18px);animation:slin .6s ease both;display:inline-flex;align-items:center;gap:7px}
+.chip i.c{width:10px;height:10px;border-radius:50%}
+.chip small{color:var(--muted)}
+@keyframes slin{from{opacity:0;transform:translateX(-30px)}}
+.empty{color:var(--muted);text-align:center;margin:auto;font-size:clamp(14px,1.1vw,20px);padding:2vh 0}
+.upd{color:var(--muted);font-size:12px;text-align:left;white-space:nowrap}
+.msg{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);background:#3a1d14;color:#ffd2c2;border-radius:14px;padding:10px 18px;font-weight:700;z-index:10;max-width:90vw;text-align:center}
+
+/* شاشة عرض كبيرة (تلفاز/شاشة كاملة): كل اللوحة في صفحة واحدة دون تمرير */
+@media (min-width:1101px) and (min-height:860px){
+  .app{height:100vh;overflow:hidden}
+  .grid{flex:1 1 0;min-height:0;grid-template-rows:minmax(0,1fr) minmax(0,1fr)}
+  .panel{overflow:hidden}
+  .donut{width:min(9.5vw,17vh);height:min(9.5vw,17vh)}
+  .legend{gap:1vh}
+  .bars{display:flex;flex-direction:column;justify-content:space-between;min-height:0;gap:.4vh}
+  .bars .empty{margin:auto}
+  .bn{font-size:clamp(13px,min(1.05vw,1.95vh),21px);margin-bottom:3px}
+  .rank{width:min(2vw,3.4vh);height:min(2vw,3.4vh)}
+  .bv{font-size:clamp(16px,min(1.4vw,2.6vh),28px)}
+  .track{height:clamp(8px,.85vh,13px)}
+  .dist{gap:.5vh}
+  .rate .avg{font-size:clamp(40px,min(4vw,7vh),80px)}
+  .types{grid-template-rows:minmax(0,1fr) minmax(0,1fr)}
+  .tc{padding:.9vh .8vw}
+  .tc h3{margin-bottom:.5vh}
+  .tc ol{gap:.3vh}
+  .tc li{font-size:clamp(13px,min(.85vw,1.5vh),17px);line-height:1.35}
+  .rgrid{grid-template-columns:minmax(0,1fr) minmax(0,1fr);align-items:start}
+  .rgrid .sub2{margin-top:0}
+  .rgrid .sub2 + .sub2:not(:empty){margin-top:1.2vh}
+  .sub2{gap:.6vh}
+  .rate{margin-bottom:1.2vh}
+}
+@media (min-width:1101px) and (min-height:860px) and (max-height:1020px){
+  .tc li:nth-child(n+3){display:none}
+}
+@media (max-width:1100px){
+  .kpis{grid-template-columns:1fr 1fr}
+  .grid{grid-template-columns:1fr;grid-template-areas:"att" "bars" "cats" "rate" "hours"}
+  .hright .clock{display:none}
+  .app{padding:14px}
+  .panel{padding:16px}
+  .kpi{padding:14px}
+}
+@media (max-width:560px){
+  .logo{display:none}
+  .types{grid-template-columns:1fr}
+  .donutw{flex-direction:column;align-items:stretch}
+  .donut{margin:0 auto}
+  .kpi .v{font-size:36px}
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="brand"><img class="logo" src="logo-white.png" alt="جامعة القصيم"><div><h1 id="expo">المعرض</h1><small id="org">لوحة المعرض المباشرة</small></div></div>
+    <div class="hright"><div class="live" id="live"><i></i><span>مباشر</span></div><div class="clock" id="clock"></div>
+      <button class="fs" id="fsBtn" title="ملء الشاشة" aria-label="ملء الشاشة"><i class="ti ti-maximize"></i></button></div>
+  </header>
+
+  <section class="kpis">
+    <div class="kpi" style="--glow:var(--pri)"><div class="l"><i class="ti ti-door-enter"></i>الحضور</div><div class="v" id="kA">0</div><div class="s" id="kAs">زائر</div></div>
+    <div class="kpi" style="--glow:var(--gold)"><div class="l"><i class="ti ti-map-pin"></i>زيارات الجهات</div><div class="v" id="kV">0</div><div class="s" id="kVs">زيارة</div></div>
+    <div class="kpi" style="--glow:var(--acc)"><div class="l"><i class="ti ti-route"></i>متوسط الجهات لكل زائر</div><div class="v" id="kE">0</div><div class="s" id="kEs">جهة لكل زائر</div></div>
+    <div class="kpi" style="--glow:var(--blue)"><div class="l"><i class="ti ti-star"></i>متوسط التقييم</div><div class="v" id="kR">0</div><div class="s" id="kRs">من 5</div></div>
+  </section>
+
+  <section class="grid">
+    <div class="panel a-att"><h2><i class="ti ti-chart-pie"></i> الحضور حسب الفئة</h2>
+      <div class="donutw"><div class="donut" id="donut"><b id="donutN">0<small>زائر</small></b></div><div class="legend" id="legend"></div></div>
+    </div>
+    <div class="panel a-bars"><h2><i class="ti ti-trophy"></i> أكثر الجهات زيارة</h2><div class="bars" id="bars"></div><div class="keys" id="keys"></div></div>
+    <div class="panel a-rate"><h2><i class="ti ti-mood-smile"></i> رضا الزوار</h2>
+      <div class="rate"><div class="avg" id="rAvg">—</div><div><div class="st" id="rStars"></div><small id="rCnt">0 تقييم</small></div></div>
+      <div class="rgrid"><div class="dist" id="dist"></div>
+        <div><div class="sub2" id="rQs" hidden></div><div class="sub2" id="rCats"></div></div></div>
+    </div>
+    <div class="panel a-hours"><h2><i class="ti ti-clock"></i> حسب الساعة
+      <span class="hint"><span><i class="dot" style="background:var(--blue)"></i> دخول</span><span><i class="dot" style="background:var(--acc)"></i> زيارات</span></span></h2>
+      <div class="hours" id="hours"></div></div>
+    <div class="panel a-cats"><h2><i class="ti ti-target-arrow"></i> الأكثر زيارة لكل فئة</h2><div class="types" id="types"></div></div>
+  </section>
+
+  <div class="ticker"><b><i class="ti ti-bolt"></i> آخر الزيارات</b><div class="tk" id="tk"></div><div class="upd" id="upd"></div></div>
+</div>
+
+<script>
+const Q_TEXT = { overall: 'التجربة العامة', benefit: 'الاستفادة', organization: 'التنظيم', content: 'محتوى الجهات' };
+const CAT_ICON = { student: 'school', faculty: 'chalkboard', staff: 'briefcase', external: 'world' };
+const $ = s => document.querySelector(s);
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const ico = n => /^[a-z0-9-]+$/.test(String(n || '')) ? `<i class="ti ti-${n}"></i>` : esc(n || '');
+const col = c => /^#[0-9a-f]{3,8}$/i.test(String(c || '')) ? c : '#7a8580';
+const fmt = (n, dec) => dec ? Number(n || 0).toFixed(1) : Math.round(n || 0).toLocaleString('en-US');
+let REFRESH = 5, lastRecent = '', CATS = {}, QS = ['overall'];
+
+function api(action) { return expoApi(action, {}, { tries: 2, timeout: 10000 }); }
+
+/* عدّاد متحرك */
+function countTo(el, to, dec) {
+  to = Number(to) || 0;
+  const from = parseFloat(el.dataset.v || '0');
+  el.dataset.v = to;
+  if (from === to) { el.textContent = fmt(to, dec); return; }
+  if (to > from && el.closest('.kpi')) {
+    const k = el.closest('.kpi');
+    k.classList.add('flash');
+    setTimeout(() => k.classList.remove('flash'), 1400);
+  }
+  const t0 = performance.now();
+  const step = now => {
+    const p = Math.min(1, (now - t0) / 1100), e = 1 - Math.pow(1 - p, 3);
+    el.textContent = fmt(from + (to - from) * e, dec);
+    if (p < 1) requestAnimationFrame(step);
+  };
+  requestAnimationFrame(step);
+}
+
+function render(s, expo, categories) {
+  $('#expo').textContent = expo.name || 'المعرض';
+  $('#org').textContent = expo.organizer ? expo.organizer + ' — لوحة المعرض المباشرة' : 'لوحة المعرض المباشرة';
+  document.title = 'لوحة المعرض — ' + (expo.name || '');
+  REFRESH = Math.max(3, expo.dashboardRefreshSec || 5);
+  QS = (expo.kioskQuestions || ['overall']).filter(k => Q_TEXT[k]);
+  if (!QS.length) QS = ['overall'];
+  const T = s.totals;
+  // الفئات النشطة، أو أي فئة لديها حضور/زيارات (حتى لو أُوقفت لاحقًا)
+  const cats = s.byCategory.filter(c => {
+    const meta = (categories || []).find(x => x.id === c.id);
+    return (meta ? meta.active !== false : true) || c.attended || c.visits;
+  });
+  CATS = {};
+  s.byCategory.forEach(c => CATS[c.id] = { name: c.name, color: col(c.color) });
+
+  /* المؤشرات */
+  countTo($('#kA'), T.attended);
+  $('#kAs').textContent = T.badges ? `من ${fmt(T.badges)} باجة · ${T.badges ? Math.round(100 * T.attended / T.badges) : 0}%` : 'زائر';
+  countTo($('#kV'), T.visits);
+  $('#kVs').textContent = `في ${fmt(T.activeEntities)} جهة` + (T.noVisit ? ` · ${fmt(T.noVisit)} لم يزوروا بعد` : '');
+  countTo($('#kE'), T.avgEntities, true);
+  $('#kEs').textContent = T.avgStayMin ? `جهة لكل زائر · متوسط البقاء ${fmt(T.avgStayMin)} دقيقة` : 'جهة لكل زائر';
+  countTo($('#kR'), T.avgRating || 0, true);
+  $('#kRs').textContent = T.ratings ? `من 5 · ${fmt(T.ratings)} تقييم` : 'بانتظار أول تقييم';
+
+  /* الدائرة: الحضور حسب الفئة */
+  const tot = cats.reduce((a, c) => a + c.attended, 0);
+  let acc = 0;
+  const parts = cats.filter(c => c.attended).map(c => {
+    const a = acc, b = acc + 100 * c.attended / tot;
+    acc = b;
+    return `${col(c.color)} ${a.toFixed(2)}% ${b.toFixed(2)}%`;
+  });
+  $('#donut').style.background = tot ? `conic-gradient(${parts.join(',')})` : 'rgba(255,255,255,.08)';
+  $('#donutN').innerHTML = `${fmt(tot)}<small>حاضر</small>`;
+  $('#legend').innerHTML = cats.map(c => `<div class="lg"><div class="t"><i style="background:${col(c.color)}"></i>
+      <span>${ico(CAT_ICON[c.id] || 'user')} ${esc(c.name)}</span><b>${fmt(c.attended)}</b>${c.badges ? `<em>/ ${fmt(c.badges)}</em>` : ''}</div>
+      <div class="mini"><i style="width:${c.badges ? Math.min(100, 100 * c.attended / c.badges) : 0}%;background:${col(c.color)}"></i></div></div>`).join('')
+    || '<div class="empty">لا توجد فئات</div>';
+
+  /* أكثر الجهات — كل شريط ملوّن حسب فئات الزوار */
+  const top = s.entities.filter(e => e.visits > 0).slice(0, 8);
+  const max = Math.max(1, ...top.map(e => e.visits));
+  const bars = $('#bars');
+  if (!top.length) { bars.innerHTML = '<div class="empty">بانتظار أول زيارة…</div>'; bars.dataset.key = ''; }
+  else {
+    const key = top.map(e => e.id).join();
+    if (bars.dataset.key !== key) {
+      bars.dataset.key = key;
+      bars.innerHTML = top.map((e, i) => `<div class="bar" data-id="${esc(e.id)}"><div class="rank">${i + 1}</div>
+        <div><div class="bn">${ico(e.icon)} ${esc(e.name)}</div><div class="track"><div class="stack" style="width:0"></div></div></div><div class="bv" data-v="0">0</div></div>`).join('');
+    }
+    requestAnimationFrame(() => top.forEach(e => {
+      const row = bars.querySelector(`[data-id="${CSS.escape(e.id)}"]`);
+      if (!row) return;
+      const st = row.querySelector('.stack');
+      st.style.width = (100 * e.visits / max) + '%';
+      st.innerHTML = s.byCategory.map(c => {
+        const n = (e.byCategory || {})[c.id] || 0;
+        return n ? `<i style="width:${100 * n / e.visits}%;background:${col(c.color)}" title="${esc(c.name)}: ${n}"></i>` : '';
+      }).join('');
+      countTo(row.querySelector('.bv'), e.visits);
+    }));
+  }
+  $('#keys').innerHTML = top.length ? cats.map(c => `<span><i style="background:${col(c.color)}"></i>${esc(c.name)}</span>`).join('') : '';
+
+  /* التقييم */
+  const R = s.ratings, avg = R.avg.overall || 0;
+  $('#rAvg').textContent = avg ? fmt(avg, true) : '—';
+  $('#rStars').innerHTML = [1, 2, 3, 4, 5].map(n => `<span class="${avg >= n - .25 ? '' : 'off'}">★</span>`).join('');
+  $('#rCnt').textContent = `${fmt(R.count)} تقييم`;
+  const dmax = Math.max(1, ...R.dist);
+  $('#dist').innerHTML = [5, 4, 3, 2, 1].map(n =>
+    `<div class="dr"><span>${n}★</span><div class="track"><i style="width:${100 * R.dist[n - 1] / dmax}%"></i></div><b>${fmt(R.dist[n - 1])}</b></div>`).join('');
+  // متوسط كل سؤال (إذا كانت شاشة التقييم تسأل أكثر من سؤال)
+  const extra = QS.filter(k => k !== 'overall');
+  $('#rQs').hidden = !extra.length || !R.count;
+  $('#rQs').innerHTML = '<h4>متوسط كل بند</h4>' + QS.map(k =>
+    `<div class="rc"><i style="background:var(--gold)"></i><span>${Q_TEXT[k]}</span><b>${R.avg[k] ? fmt(R.avg[k], true) : '—'}</b></div>`).join('');
+  // التقييم حسب الفئة
+  const rated = cats.filter(c => c.ratings);
+  $('#rCats').innerHTML = R.count ? '<h4>حسب الفئة</h4>' + rated.map(c =>
+      `<div class="rc"><i style="background:${col(c.color)}"></i><span>${esc(c.name)}</span><b>${fmt(c.avgRating, true)}</b><em>${fmt(c.ratings)} تقييم</em></div>`).join('')
+      + (R.unknownCategory ? `<div class="rc"><i style="background:rgba(255,255,255,.3)"></i><span>لم يحدد فئته</span><b></b><em>${fmt(R.unknownCategory)} تقييم</em></div>` : '')
+    : '';
+
+  /* حسب الساعة: دخول + زيارات */
+  const hs = s.hours;
+  if (!hs.length) $('#hours').innerHTML = '<div class="empty">بانتظار أول حضور…</div>';
+  else {
+    const nowH = new Date().getHours();
+    const first = +hs[0].h, lastData = +hs[hs.length - 1].h;
+    // نمد المحور حتى الساعة الحالية (إذا كانت خلال اليوم نفسه وبعد آخر بيانات بقليل)
+    const last = nowH > lastData && nowH - first <= 14 ? nowH : lastData;
+    const map = {};
+    hs.forEach(h => map[+h.h] = h);
+    const hmax = Math.max(1, ...hs.map(h => Math.max(h.visits, h.entries)));
+    let html = '';
+    for (let h = first; h <= last; h++) {
+      const x = map[h] || { visits: 0, entries: 0 };
+      html += `<div class="hc ${h === nowH ? 'now' : ''}"><div class="hb">
+          <i class="e" style="height:${Math.max(1.5, 100 * x.entries / hmax)}%"><b>${x.entries || ''}</b></i>
+          <i class="v" style="height:${Math.max(1.5, 100 * x.visits / hmax)}%"><b>${x.visits || ''}</b></i>
+        </div><small>${String(h).padStart(2, '0')}:00</small></div>`;
+    }
+    $('#hours').innerHTML = html;
+  }
+
+  /* أكثر الجهات لكل فئة */
+  $('#types').innerHTML = cats.map(c => `<div class="tc" style="--c:${col(c.color)}">
+    <h3>${ico(CAT_ICON[c.id] || 'user')}<span>${esc(c.name)}</span><em><b>${fmt(c.visits)}</b> زيارة</em></h3>
+    ${c.top.length ? '<ol>' + c.top.slice(0, 3).map(x => `<li><span>${ico(x.icon)} ${esc(x.name)}</span><b>${fmt(x.visits)}</b></li>`).join('') + '</ol>'
+      : '<div class="em">لا توجد زيارات بعد</div>'}</div>`).join('');
+
+  /* شريط آخر الزيارات */
+  const rk = JSON.stringify(s.recent);
+  if (rk !== lastRecent) {
+    lastRecent = rk;
+    $('#tk').innerHTML = s.recent.length ? s.recent.map(r => {
+      const c = CATS[r.category] || { name: 'زائر', color: '#7a8580' };
+      return `<span class="chip"><i class="c" style="background:${c.color}"></i>${esc(c.name)} زار <b>${esc(r.entity)}</b><small>${esc(r.time)}</small></span>`;
+    }).join('') : '<span class="chip">بانتظار أول زيارة…</span>';
+  }
+  $('#upd').textContent = 'آخر تحديث ' + new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+}
+
+let fails = 0, msgEl = null;
+function message(t) {
+  if (!t) { if (msgEl) { msgEl.remove(); msgEl = null; } return; }
+  if (!msgEl) { msgEl = document.createElement('div'); msgEl.className = 'msg'; document.body.appendChild(msgEl); }
+  msgEl.textContent = t;
+}
+async function tick() {
+  if (document.hidden) { setTimeout(tick, 5000); return; }   // لا طلبات والشاشة مخفية
+  try {
+    const r = await api('dashboard');
+    render(r.stats, r.expo || {}, r.categories || []);
+    fails = 0;
+    message('');
+    $('#live').className = 'live';
+    $('#live span').textContent = 'مباشر';
+  } catch (e) {
+    fails++;
+    if (fails >= 2 || !e.network) {     // لا نُظهر الانقطاع إلا إذا تكرر
+      $('#live').className = 'live off';
+      $('#live span').textContent = 'إعادة الاتصال…';
+      if (!e.network) message(e.message);
+    }
+    if (window.console) console.warn(e);
+  } finally {
+    // يزيد الانتظار تدريجيًا عند تكرر الأخطاء، مع تباعد عشوائي بسيط
+    const wait = REFRESH * 1000 * Math.min(1 + fails * 0.5, 3) + Math.random() * 500;
+    setTimeout(tick, wait);
+  }
+}
+
+function clock() { $('#clock').textContent = new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }); }
+setInterval(clock, 1000); clock();
+
+$('#fsBtn').onclick = () => {
+  const d = document.documentElement;
+  if (!document.fullscreenElement && !document.webkitFullscreenElement) (d.requestFullscreen || d.webkitRequestFullscreen || (() => {})).call(d);
+  else (document.exitFullscreen || document.webkitExitFullscreen || (() => {})).call(document);
+};
+
+if (!window.expoReady) $('#expo').textContent = 'ضع رابط Supabase والمفتاح في config.js';
+else tick();
+</script>
+</body>
+</html>
